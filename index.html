@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>劳保用品入库验收记录</title>
+<style>
+:root{
+  --pri:#2e75b6; --pri-d:#1f5b93; --pri-l:#eaf2fb;
+  --ok:#1a9c5b; --ok-l:#e8f7ef; --no:#d0402f; --no-l:#fdecea;
+  --bd:#dfe4ec; --bg:#f4f6fa; --txt:#1f2733; --sub:#6b7686;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--txt);font-size:15px;line-height:1.5;padding-bottom:76px}
+.wrap{max-width:960px;margin:0 auto;padding:0 12px}
+
+/* 顶栏 */
+header{background:linear-gradient(135deg,#2e75b6,#1f5b93);color:#fff;padding:14px 0 12px;
+  position:sticky;top:0;z-index:30;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+header .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.5px}
+.hstat{font-size:12px;opacity:.9;white-space:nowrap}
+
+/* 卡片 */
+.card{background:#fff;border-radius:12px;padding:14px;margin-top:12px;box-shadow:0 1px 3px rgba(20,40,80,.06)}
+.card h2{font-size:14px;margin:0 0 10px;color:var(--pri);font-weight:600;display:flex;align-items:center;gap:6px}
+.card h2::before{content:"";width:3px;height:14px;background:var(--pri);border-radius:2px}
+
+label.fl{display:block;font-size:13px;color:var(--sub);margin:10px 0 5px}
+label.fl:first-of-type{margin-top:0}
+input,select,textarea{width:100%;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;
+  font-size:15px;font-family:inherit;color:var(--txt);background:#fff;outline:none;transition:.15s}
+input:focus,select:focus,textarea:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(46,117,182,.12)}
+textarea{resize:vertical;min-height:56px}
+select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7686' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* 提示框 */
+.notice{background:#fff8e6;border:1px solid #f3d78f;border-radius:10px;padding:10px 12px;
+  font-size:12.5px;color:#7a5a12;margin-top:12px;line-height:1.6}
+.notice b{color:#b5760a}
+.warn{background:var(--no-l);border-color:#f3b6ad;color:#8c2b1e}
+.warn b{color:#a3251a}
+
+/* 验收要求框 */
+.reqbox{background:var(--pri-l);border-left:3px solid var(--pri);border-radius:8px;padding:10px 12px;
+  font-size:13.5px;white-space:pre-line;color:#20405f;margin-top:10px;line-height:1.7}
+.reqbox.empty{background:#f6f7f9;border-left-color:#c8cfda;color:#9aa4b2;font-style:normal}
+
+/* 判定按钮 */
+.judge{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.jbtn{border:2px solid var(--bd);background:#fff;border-radius:10px;padding:14px 8px;font-size:16px;
+  font-weight:600;color:var(--sub);cursor:pointer;transition:.15s;display:flex;align-items:center;
+  justify-content:center;gap:7px;font-family:inherit}
+.jbtn:active{transform:scale(.97)}
+.jbtn .ic{font-size:18px;line-height:1}
+.jbtn.ok.on{border-color:var(--ok);background:var(--ok-l);color:var(--ok)}
+.jbtn.no.on{border-color:var(--no);background:var(--no-l);color:var(--no)}
+
+/* 照片 */
+.phbtns{display:flex;gap:8px;margin-top:10px}
+.phbtn{flex:1;border-radius:9px;padding:11px 8px;font-size:14px;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:.15s;border:0}
+.phbtn:active{transform:scale(.97)}
+.phbtn.cam{background:var(--pri);color:#fff}
+.phbtn.gal{background:var(--pri-l);color:var(--pri);border:1px solid #bcd4ec}
+.photos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#eef1f5}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .del{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;
+  background:rgba(0,0,0,.55);color:#fff;border:0;font-size:13px;line-height:20px;cursor:pointer;padding:0}
+.addph{aspect-ratio:1;border:2px dashed #b9c4d4;border-radius:8px;background:#fafbfd;color:#8d99a9;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;
+  font-size:11px;border-style:dashed;padding:0}
+.addph span:first-child{font-size:22px;line-height:1;font-weight:300}
+
+/* 按钮 */
+.btn{border:0;border-radius:9px;padding:12px 16px;font-size:15px;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:.15s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:var(--pri);color:#fff;width:100%;margin-top:16px;padding:14px}
+.btn.pri:disabled{background:#b8c5d6;cursor:not-allowed}
+.btn.gh{background:#fff;border:1px solid var(--bd);color:var(--txt);flex:1}
+.btn.sm{padding:8px 12px;font-size:13px}
+.btn.danger{background:#fff;border:1px solid #f3b6ad;color:var(--no)}
+.btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+/* 记录列表 */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:#f0f4fa;color:#3d4b5c;font-weight:600;padding:8px 6px;text-align:left;
+  border-bottom:1px solid var(--bd);position:sticky;top:0;white-space:nowrap}
+td{padding:8px 6px;border-bottom:1px solid #eef1f6;vertical-align:middle}
+tr:hover td{background:#fafcff}
+.tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.tag.ok{background:var(--ok-l);color:var(--ok)}
+.tag.no{background:var(--no-l);color:var(--no)}
+.tag.wait{background:#f0f2f5;color:#8d99a9}
+.thumb{width:30px;height:30px;border-radius:5px;object-fit:cover;vertical-align:middle;cursor:zoom-in}
+.tbwrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px}
+.empty-tip{text-align:center;color:#a8b2c0;font-size:13px;padding:26px 0}
+
+/* 底部操作条 */
+footer{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--bd);
+  padding:10px 12px calc(10px + env(safe-area-inset-bottom));z-index:40;display:flex;gap:8px;
+  max-width:960px;margin:0 auto;flex-wrap:wrap}
+footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
+
+/* 弹窗 */
+.modal{position:fixed;inset:0;background:rgba(16,24,40,.55);z-index:100;display:none;
+  align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)}
+.modal.show{display:flex}
+.mbox{background:#fff;border-radius:14px;padding:18px;max-width:460px;width:100%;max-height:86vh;overflow:auto}
+.mbox h3{margin:0 0 8px;font-size:16px;color:var(--pri)}
+.mbox p{font-size:13.5px;color:var(--sub);margin:0 0 14px;line-height:1.7}
+.mbox textarea{min-height:110px;font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all}
+.viewer{position:fixed;inset:0;background:#000;z-index:200;display:none;align-items:center;justify-content:center}
+.viewer.show{display:flex}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.viewer .close{position:absolute;top:14px;right:16px;color:#fff;font-size:30px;cursor:pointer;line-height:1}
+
+.sticky-bottom{position:sticky;bottom:0;background:#fff;padding-top:10px;margin-top:6px}
+.kv{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dashed #eef1f6}
+.kv:last-child{border:0}
+.kv b{color:var(--pri);font-weight:600}
+.toast{position:fixed;left:50%;bottom:96px;transform:translate(-50%,20px);background:rgba(28,38,52,.94);
+  color:#fff;padding:10px 18px;border-radius:22px;font-size:13.5px;z-index:300;opacity:0;
+  transition:.25s;pointer-events:none;max-width:80%;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.linkbtn{background:none;border:0;color:#fff;font-size:12.5px;text-decoration:underline;
+  cursor:pointer;font-family:inherit;padding:0;white-space:nowrap}
+.cntline{text-align:center;color:var(--sub);font-size:13px;margin-top:12px}
+.cntline b{color:var(--pri)}
+@media(max-width:400px){
+  .photos{grid-template-columns:repeat(3,1fr)}
+  footer .btn{min-width:calc(50% - 4px)}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>劳保用品入库验收</h1>
+    <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="notice warn" id="envTip" style="display:none;margin-top:12px">
+    <b>相机不可用：</b>当前是在应用内置窗口或本地文件里打开的页面，系统不允许调用相机。
+    解决办法：<b>把本文件发到手机后，用「Safari」或「Chrome」浏览器打开</b>（不要在微信/QQ窗口里直接点开），
+    或先点「从相册选择」用系统相册拍照后再选入。拍照前请允许浏览器使用相机权限。
+  </div>
+  <!-- 验收信息 -->
+  <div class="cntline" id="cntline" style="display:none">本次已连续提交 <b id="cnt2">0</b> 项，提交后自动清空表单，继续选下一项即可</div>
+  <div class="card">
+    <h2>验收信息</h2>
+    <div class="row2">
+      <div>
+        <label class="fl">验收日期</label>
+        <input type="date" id="date">
+      </div>
+      <div>
+        <label class="fl">验收人</label>
+        <input type="text" id="inspector" placeholder="姓名">
+      </div>
+    </div>
+    <label class="fl">批次号（可选）</label>
+    <input type="text" id="batch" placeholder="如 RK20261103-01">
+  </div>
+
+  <!-- 录入 -->
+  <div class="card">
+    <h2>录入记录</h2>
+    <label class="fl">物品名称</label>
+    <select id="item"><option value="">请选择物品…</option></select>
+
+    <label class="fl">品牌型号</label>
+    <input type="text" id="brand" placeholder="选择物品后自动带出，可修改">
+
+    <label class="fl">数量</label>
+    <input type="number" id="qty" min="1" step="1" placeholder="入库数量" inputmode="numeric">
+
+    <label class="fl" style="margin-top:14px">验收要求</label>
+    <div class="reqbox empty" id="req">选择物品后自动显示验收要求</div>
+
+    <div class="judge">
+      <button class="jbtn ok" data-v="ok" id="btnOk"><span class="ic">✓</span><span>符合</span></button>
+      <button class="jbtn no" data-v="no" id="btnNo"><span class="ic">✕</span><span>不符合</span></button>
+    </div>
+
+    <label class="fl" style="margin-top:14px">现场照片<span style="color:#a8b2c0;font-weight:400">（最多9张，自动压缩）</span></label>
+    <div class="phbtns">
+      <button class="phbtn cam" id="btnCam" type="button">📷 拍照</button>
+      <button class="phbtn gal" id="btnGal" type="button">🖼 从相册选择</button>
+    </div>
+    <div class="photos" id="photos"></div>
+
+    <label class="fl">备注</label>
+    <textarea id="remark" placeholder="不合格原因、处理意见等"></textarea>
+
+    <button class="btn pri" id="save">提交并填写下一份</button>
+  </div>
+
+  <!-- 记录列表（默认收起，点顶部"已提交 N 条"展开） -->
+  <div class="card" id="recCard" style="display:none">
+    <h2>已录入记录 <span id="cnt" style="color:var(--sub);font-weight:400;font-size:12.5px"></span></h2>
+    <div class="tbwrap">
+      <table id="tbl">
+        <thead>
+          <tr><th>日期</th><th>物品</th><th>品牌</th><th>数量</th><th>判定</th><th>照片</th><th>备注</th><th></th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty-tip" id="emptyTip">还没有记录，先在上面录入一条吧</div>
+  </div>
+
+  <div class="notice warn" style="margin-bottom:16px">
+    <b>关于数据存储：</b>当前为纯本地模式，记录与照片保存在<b>本设备浏览器</b>中，不上传服务器。
+    手机与电脑的数据互不相通 —— 请用<b>「生成同步码」</b>把手机数据导到电脑，再在电脑上导出 Excel。
+    iPhone 建议用 Safari，安卓建议用 Chrome / 微信内置浏览器打开。<b>清理浏览器数据会丢失记录，请及时导出备份。</b>
+  </div>
+</div>
+
+<footer>
+  <button class="btn gh" id="expXlsx">导出 Excel</button>
+  <button class="btn gh" id="syncCode">生成同步码</button>
+  <button class="btn gh" id="impCode">导入同步码</button>
+  <button class="btn gh danger" id="clearAll">清空</button>
+</footer>
+
+<!-- 弹窗 -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3 id="mTitle">标题</h3>
+    <p id="mDesc"></p>
+    <textarea id="mArea" style="display:none"></textarea>
+    <div class="btns">
+      <button class="btn gh" id="mClose">关闭</button>
+      <button class="btn pri" id="mOk" style="margin:0;flex:1;padding:11px">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="viewer" id="viewer"><span class="close" id="vClose">×</span><img id="vImg" alt=""></div>
+<div class="viewer" id="camModal">
+  <div style="position:relative;width:100%;max-width:520px">
+    <video id="camVideo" autoplay playsinline style="width:100%;border-radius:12px;background:#000"></video>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:12px">
+      <button id="camShot" style="flex:1;padding:14px;border:0;border-radius:12px;background:#2e75b6;color:#fff;font-size:16px;font-weight:600">拍摄</button>
+      <button id="camSwitch" style="padding:14px 16px;border:0;border-radius:12px;background:rgba(255,255,255,.15);color:#fff;font-size:14px">翻转</button>
+      <button id="camCancel" style="padding:14px 16px;border:0;border-radius:12px;background:rgba(255,255,255,.15);color:#fff;font-size:14px">取消</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+<input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
+
+<script>
+/* ============ 数据 ============ */
+const ITEMS = [{"name": "安全帽", "brand": "彪王", "req": "1.外壳无裂纹、磕碰凹坑、变形、毛刺；\n2.帽衬、帽带、下颏带完整无断裂，卡扣可调；\n3.帽壳标识齐全（合格证、生产日期、执行标准），在有效期内；\n4.无老化发脆、油污霉变"}, {"name": "防尘薄口罩(9501+/9502+)", "brand": "3M", "req": "1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹不变形、可弯折定型；无纺布均匀、无破洞稀网；\n4.手感柔软不掉屑；外包装标注产品名称、生产日期、保质期、生产厂家、合格证"}, {"name": "半面罩(AN3002)", "brand": "生宝", "req": "1.面罩主体无裂纹、无破损、不变形、无毛刺、无异味；\n2.橡胶/硅胶材质柔软有弹性，不发硬、不发粘、不脆裂；\n3.头带弹性完好，卡扣可正常调节"}, {"name": "滤棉DL-R", "brand": "生宝", "req": "1.滤棉表面无破损、无变形、无污渍霉点、无掉屑；\n2.包装完好、密封无破损、无受潮；\n3.过滤层与支撑层贴合牢固，不分层；边缘封边牢固不脱边不散边"}, {"name": "半面式防毒面具6200", "brand": "3M", "req": "1.面罩主体无裂纹、破损、变形、毛刺、异味；\n2.橡胶/硅胶柔软有弹性，不发硬、不发粘、不脆裂；\n3.头带弹性好、不断裂、不脱胶，调节扣完好"}, {"name": "滤盒(6001)", "brand": "3M", "req": "1.外观无破损、无受潮、无松动；\n2.防护类型标识清晰（防有机蒸气）；\n3.在有效期内，无过期、无外壳老化开裂"}, {"name": "滤棉(5N11)", "brand": "3M", "req": "1.表面无破损、无变形、无霉斑、无掉毛、无污渍；\n2.滤料均匀、无破洞、无压塌、不分层；\n3.边缘封边牢固，不散边、不脱层"}, {"name": "滤棉盖(501)", "brand": "3M", "req": "1.无裂纹、破损、缺角、毛刺、变形；\n2.材质坚硬有韧性，不发软、不脆、一捏不裂；\n3.表面无污渍、无发黄、无老化"}, {"name": "活性炭口罩", "brand": "呼亨", "req": "1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹可正常定型，无纺布均匀无破洞稀网；\n4.外包装标识完整，合格证齐全"}, {"name": "M97医用外科口罩(无菌级)", "brand": "保为康", "req": "1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹不变形、可弯折定型；无纺布均匀无破洞稀网；\n4.手感柔软；包装标注产品名称、生产日期、保质期、厂家、合格证、无菌标识"}, {"name": "一次性防护服(K1200)", "brand": "坤泽尔", "req": "1.整体无破损、无破洞、无撕裂、无污渍、无霉点；\n2.缝线/热合处无开缝、无脱胶、无针孔漏点；\n3.面料均匀、无薄块、无砂眼、无发黄老化；\n4.连体/分体结构与订单一致，连帽、袖口、脚踝、腰部结构完整；\n5.弹性收口松紧正常，不松脱、不断裂；\n6.面罩开口、手套口、鞋套口（如有）完好无缺"}, {"name": "涂装防护服", "brand": "牧琅", "req": "1.整体无破损、无破洞、无撕裂、无污渍、无霉点；\n2.缝线/热合处无开缝、无脱胶、无针孔漏点；\n3.面料均匀、无薄块、无砂眼、无发黄老化；\n4.连体/分体与订单一致，连帽、袖口、腰部结构完整；\n5.弹性收口松紧正常，不松脱、不断裂；\n6.面罩口、手套口、鞋套口（如有）完好无缺"}, {"name": "防冲击护目镜/平光镜", "brand": "畅鸿", "req": "1.镜片无划痕、无气泡、无条纹、无裂纹、无杂质、无崩边；\n2.镜架无裂纹、无毛刺、无变形、无缺件；\n3.整体无污渍、无发霉、无老化发黄；\n4.镜腿弹性正常、不断裂、松紧适中；\n5.鼻托贴合不滑落、不压鼻；螺丝/卡扣牢固不松动不掉件"}, {"name": "电焊面罩", "brand": "牛盾", "req": "1.面罩壳体无裂纹、破损、变形、气泡、明显毛刺；\n2.面罩内部无尖锐边角、无松动零件；\n3.面罩镜片卡槽完好，可正常安装镜片"}, {"name": "白玻璃镜片(面罩)", "brand": "牛盾", "req": "1.表面平整、无裂纹、无崩边、无明显划痕、无气泡；\n2.尺寸标准，能正常装入面罩镜框"}, {"name": "黑玻璃镜片(面罩)", "brand": "牛盾", "req": "1.表面平整、无裂纹、无崩边、无明显划痕、无气泡；遮光号标识清晰；\n2.尺寸标准，能正常装入面罩镜框"}, {"name": "线手套", "brand": "坤利", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "线胶手套", "brand": "登升保友", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "布手套", "brand": "坤利", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "花皮手套", "brand": "东瑞通达", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "涂胶手套(好)", "brand": "三碟", "req": "1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"}, {"name": "涂胶手套(普通)", "brand": "南洋", "req": "1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"}, {"name": "防割手套(下料专供)", "brand": "胜丽", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "焊工手套", "brand": "祥硕", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "耐高温手套", "brand": "恒辉", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "一次性丁腈手套", "brand": "英科", "req": "1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"}, {"name": "劳保防水手套加长袖", "brand": "慎固", "req": "1.无脱层、无裂纹、无破洞、无划痕、无霉点、无刺鼻异味；\n2.材质柔韧不脆，揉搓不开裂"}, {"name": "劳保鞋78010(防砸)高筒雨靴", "brand": "祺宝", "req": "1.鞋面/靴体无破损、开裂、变形、发霉；钢包头防护结构无外露变形；\n2.鞋底纹路完整，无严重开胶；鞋帮缝线完好；标识齐全"}, {"name": "耳塞", "brand": "君御", "req": "1.发泡耳塞回弹均匀，不发粘、不粉化；揉搓后回弹速度正常；\n2.材质柔韧不脆，拉扯无裂纹、无刺鼻异味"}, {"name": "阻燃焊工服倒褂", "brand": "畅通—三五七", "req": "1.材质为牛皮/阻燃皮，厚度均匀、坚韧耐磨；\n2.无破损、裂皮、刀伤、孔洞，无严重烫痕伤损脆化、腐烂；\n3.缝线为耐高温线，针脚均匀无跳线；拼接处牢固不开裂；\n4.边缘处理规整，不划手"}, {"name": "焊工围裙", "brand": "胜丽", "req": "1.材质为牛皮/阻燃皮，厚度均匀、坚韧耐磨；\n2.无破损、裂皮、刀伤、孔洞，无严重烫痕伤损脆化、腐烂；\n3.缝线为耐高温线，针脚均匀无跳线；拼接处牢固不开裂；\n4.边缘处理规整，不划手"}, {"name": "PU围裙", "brand": "畅通", "req": "1.PU面料无破损、无龟裂、无划痕、无霉斑；\n2.表面光滑无污渍、无毛发；材质柔软不发硬、不发粘、不脆裂"}, {"name": "套袖", "brand": "谋福", "req": "1.无污渍、霉点、无刺鼻异味；\n2.柔韧不脆，揉搓不开裂；缝线完整无开线"}, {"name": "夏季工作服(上衣)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "夏季工作服(下衣/袖)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "春秋季工作服(上衣)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "春秋季工作服(下衣)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "棉衣", "brand": "古亨", "req": "1.外层面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线，填充物无外露跑棉；\n3.拉链/纽扣完好，尺码标识齐全"}, {"name": "安全带", "brand": "平安安泰", "req": "1.织带无烧伤、无撕裂、无污渍、无霉烂、无老化；\n2.缝线针脚均匀，无断针、无线头；\n3.金属配件无裂纹、无变形；腰带、肩带、腿带、护腰齐全；\n4.卡扣安全可靠，自锁闭锁灵活闭合可靠，不自动弹开；标识及有效期清晰"}, {"name": "雨衣", "brand": "中倚", "req": "1.防水面料无破洞、撕裂、划痕、发白老化；\n2.缝线压胶完好无开缝；帽檐、袖口松紧完好；\n3.无刺鼻塑料异味"}, {"name": "绝缘手套", "brand": "胜丽", "req": "1.表面无裂纹、破洞、粘损、老化发脆；\n2.无油污、发霉、粘连；\n3.产品电压等级标识、合格证、检验日期清晰，在检验有效期内"}];
+
+const KEY = 'ppe_inspect_v1';
+let records = [];
+let photoBuf = [];      // 当前待保存照片 [{id,data}]
+let judge = null;
+let modalCb = null;
+
+/* ============ 工具 ============ */
+const $ = id => document.getElementById(id);
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(()=>t.classList.remove('show'), 2000);
+}
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function load(){
+  try{ records = JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ records = []; }
+}
+function save(){
+  try{
+    localStorage.setItem(KEY, JSON.stringify(records));
+    return true;
+  }catch(e){
+    toast('存储空间不足，请导出后清理旧记录');
+    return false;
+  }
+}
+function esc(s){
+  return String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ============ 初始化 ============ */
+function initItems(){
+  const sel = $('item');
+  ITEMS.forEach((it,i)=>{
+    const o = document.createElement('option');
+    o.value = i; o.textContent = it.name + '  ·  ' + it.brand;
+    sel.appendChild(o);
+  });
+}
+function initDate(){
+  $('date').value = todayStr();
+}
+
+/* ============ 选择物品联动 ============ */
+$('item').addEventListener('change', e=>{
+  const i = e.target.value;
+  if(i === ''){
+    $('brand').value = '';
+    $('req').textContent = '选择物品后自动显示验收要求';
+    $('req').classList.add('empty');
+    return;
+  }
+  const it = ITEMS[+i];
+  $('brand').value = it.brand;
+  $('req').textContent = it.req;
+  $('req').classList.remove('empty');
+});
+
+/* ============ 判定 ============ */
+document.querySelectorAll('.jbtn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    judge = b.dataset.v;
+    $('btnOk').classList.toggle('on', judge==='ok');
+    $('btnNo').classList.toggle('on', judge==='no');
+    if(judge === 'no') $('remark').focus();
+  });
+});
+
+/* ============ 照片 ============ */
+/* ---- 网页相机（getUserMedia）---- */
+let camStream=null, camFacing='environment';
+function camOpen(){
+  const v=$('camVideo');
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:camFacing, width:{ideal:1920}}, audio:false
+  }).then(st=>{
+    camStream=st; v.srcObject=st;
+    $('camModal').classList.add('show');
+  }).catch(err=>{
+    // 相机不可用 → 回退到系统相机 input
+    toast('无法调用相机，改用系统相机');
+    $('camInput').click();
+  });
+}
+function camClose(){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+  $('camVideo').srcObject=null;
+  $('camModal').classList.remove('show');
+}
+$('camShot').addEventListener('click', ()=>{
+  const v=$('camVideo');
+  if(!v.videoWidth){ toast('相机未就绪'); return; }
+  const cv=document.createElement('canvas');
+  const maxW=1600;
+  let w=v.videoWidth, h=v.videoHeight;
+  if(w>maxW){ h=Math.round(h*maxW/w); w=maxW; }
+  cv.width=w; cv.height=h;
+  cv.getContext('2d').drawImage(v,0,0,w,h);
+  const data=cv.toDataURL('image/jpeg',0.8);
+  if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
+  photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data});
+  renderPhotos(); camClose(); toast('已拍摄');
+});
+$('camSwitch').addEventListener('click', ()=>{
+  camFacing = camFacing==='environment' ? 'user' : 'environment';
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:camFacing},audio:false})
+    .then(st=>{ camStream=st; $('camVideo').srcObject=st; })
+    .catch(()=>{});
+});
+$('camCancel').addEventListener('click', camClose);
+$('camModal').addEventListener('click', e=>{ if(e.target.id==='camModal') camClose(); });
+
+$('btnCam').addEventListener('click', ()=>{
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    camOpen();
+  } else {
+    // 环境不支持网页相机（file:// 或内置浏览器）
+    $('envTip').style.display='block';
+    $('envTip').scrollIntoView({behavior:'smooth', block:'center'});
+    toast('当前环境不支持相机，已显示解决方法');
+    setTimeout(()=>$('envTip').style.display='none', 12000);
+  }
+});
+$('btnGal').addEventListener('click', ()=>$('fileInput').click());
+
+async function handleFiles(files){
+  for(const f of files){
+    if(photoBuf.length >= 9){ toast('最多9张照片'); break; }
+    const data = await compress(f);
+    if(data) photoBuf.push({id: 'p'+Date.now()+Math.random().toString(36).slice(2,6), data});
+  }
+  renderPhotos();
+}
+$('fileInput').addEventListener('change', async e=>{
+  const files=[...e.target.files]; e.target.value='';
+  await handleFiles(files);
+});
+$('camInput').addEventListener('change', async e=>{
+  const files=[...e.target.files]; e.target.value='';
+  await handleFiles(files);
+});
+
+function compress(file, maxW=1280, quality=0.72){
+  return new Promise(res=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{
+      let {width:w, height:h} = img;
+      if(w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      res(cv.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); res(''); };
+    img.src = url;
+  });
+}
+
+function renderPhotos(){
+  const box = $('photos');
+  box.innerHTML = '';
+  photoBuf.forEach((p,idx)=>{
+    const d = document.createElement('div');
+    d.className = 'ph';
+    d.innerHTML = '<img src="'+p.data+'" alt=""><button class="del" type="button">×</button>';
+    d.querySelector('img').addEventListener('click', ()=>openViewer(p.data));
+    d.querySelector('.del').addEventListener('click', ev=>{
+      ev.stopPropagation();
+      photoBuf.splice(idx,1);
+      renderPhotos();
+    });
+    box.appendChild(d);
+  });
+  if(photoBuf.length >= 9){
+    $('btnCam').disabled = true; $('btnGal').disabled = true;
+    $('btnCam').style.opacity = .5; $('btnGal').style.opacity = .5;
+  } else {
+    $('btnCam').disabled = false; $('btnGal').disabled = false;
+    $('btnCam').style.opacity = 1; $('btnGal').style.opacity = 1;
+  }
+}
+
+/* ============ 保存 ============ */
+$('save').addEventListener('click', ()=>{
+  const itemIdx = $('item').value;
+  if(itemIdx === ''){ toast('请选择物品名称'); return; }
+  const qty = $('qty').value.trim();
+  if(!qty || +qty <= 0){ toast('请填写数量'); $('qty').focus(); return; }
+  if(!judge){ toast('请选择「符合」或「不符合」'); return; }
+
+  const it = ITEMS[+itemIdx];
+  const rec = {
+    id: 'r'+Date.now()+Math.random().toString(36).slice(2,6),
+    date: $('date').value || todayStr(),
+    inspector: $('inspector').value.trim(),
+    batch: $('batch').value.trim(),
+    item: it.name,
+    brand: $('brand').value.trim() || it.brand,
+    qty: +qty,
+    req: it.req,
+    judge: judge,
+    photos: photoBuf.map(p=>p.data),
+    remark: $('remark').value.trim(),
+    ts: Date.now()
+  };
+  // 同步本次录入信息到新记录，便于连续录入
+  records.unshift(rec);
+  if(!save()){ records.shift(); return; }
+
+  sessionCnt++;
+  $('cnt2').textContent = sessionCnt;
+  $('cntline').style.display = 'block';
+  toast('第 '+sessionCnt+' 条已提交，请继续填写');
+  resetForm();
+  renderTable();
+});
+
+let sessionCnt = 0;
+
+/* 顶部「已提交 N 条」：展开/收起记录列表 */
+$('viewRec').addEventListener('click', ()=>{
+  const card = $('recCard');
+  const show = card.style.display === 'none';
+  card.style.display = show ? 'block' : 'none';
+  if(show){ try{ card.scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){} }
+});
+
+function resetForm(){
+  $('item').value = '';
+  $('brand').value = '';
+  $('req').textContent = '选择物品后自动显示验收要求';
+  $('req').classList.add('empty');
+  $('qty').value = '';
+  $('remark').value = '';
+  photoBuf = [];
+  renderPhotos();
+  judge = null;
+  $('btnOk').classList.remove('on');
+  $('btnNo').classList.remove('on');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ============ 列表 ============ */
+function renderTable(){
+  const tb = $('tbody');
+  tb.innerHTML = '';
+  $('emptyTip').style.display = records.length ? 'none' : 'block';
+  $('cnt').textContent = records.length ? '（共 '+records.length+' 条）' : '';
+  $('hdrCnt').textContent = records.length;
+  const okN = records.filter(r=>r.judge==='ok').length;
+  const noN = records.filter(r=>r.judge==='no').length;
+
+  records.forEach(r=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="white-space:nowrap">'+esc(r.date)+'</td>'+
+      '<td>'+esc(r.item)+'</td>'+
+      '<td>'+esc(r.brand)+'</td>'+
+      '<td style="text-align:right">'+esc(r.qty)+'</td>'+
+      '<td><span class="tag '+(r.judge==='ok'?'ok':'no')+'">'+(r.judge==='ok'?'符合':'不符合')+'</span></td>'+
+      '<td>'+(r.photos.length
+        ? '<img class="thumb" src="'+r.photos[0]+'" alt=""><span style="color:#8d99a9;font-size:11px"> '+r.photos.length+'</span>'
+        : '<span style="color:#c8cfda">—</span>')+'</td>'+
+      '<td style="max-width:130px;color:#6b7686">'+esc(r.remark||'—')+'</td>'+
+      '<td><button class="btn sm danger" style="padding:3px 8px;font-size:12px">删</button></td>';
+    tr.querySelector('.thumb')?.addEventListener('click', ()=>openViewer(r.photos[0]));
+    tr.querySelector('button').addEventListener('click', ()=>{
+      if(!confirm('删除这条记录？'))return;
+      records = records.filter(x=>x.id!==r.id);
+      save(); renderTable();
+    });
+    tb.appendChild(tr);
+  });
+}
+
+/* ============ 查看大图 ============ */
+function openViewer(src){ $('vImg').src = src; $('viewer').classList.add('show'); }
+$('vClose').addEventListener('click', ()=>$('viewer').classList.remove('show'));
+$('viewer').addEventListener('click', e=>{ if(e.target.id==='viewer') $('viewer').classList.remove('show'); });
+
+/* ============ 弹窗 ============ */
+function openModal(title, desc, value, cb, readonly){
+  $('mTitle').textContent = title;
+  $('mDesc').textContent = desc;
+  const ta = $('mArea');
+  if(value === null){ ta.style.display = 'none'; }
+  else { ta.style.display = 'block'; ta.value = value; ta.readOnly = !!readonly; }
+  $('mOk').style.display = readonly ? 'none' : 'inline-flex';
+  modalCb = cb;
+  $('modal').classList.add('show');
+}
+$('mClose').addEventListener('click', ()=>{ $('modal').classList.remove('show'); modalCb=null; });
+$('mOk').addEventListener('click', ()=>{
+  const v = $('mArea').value;
+  $('modal').classList.remove('show');
+  if(modalCb) modalCb(v);
+  modalCb = null;
+});
+
+/* ============ 同步码 ============ */
+function packData(){
+  // 精简结构 + 压缩照片到 640px 再打包
+  return records.map(r=>({
+    d:r.date, i:r.item, b:r.brand, q:r.qty, j:r.judge,
+    p:r.photos, m:r.remark, u:r.inspector, bt:r.batch, t:r.ts
+  }));
+}
+
+$('syncCode').addEventListener('click', async ()=>{
+  if(!records.length){ toast('还没有记录'); return; }
+  toast('正在生成…');
+  // 二次压缩照片，控制同步码体积
+  const slim = [];
+  for(const r of records){
+    const ps = [];
+    for(const p of r.photos){
+      ps.push(await shrinkDataUrl(p, 640, 0.55));
+    }
+    slim.push({d:r.date,i:r.item,b:r.brand,q:r.qty,j:r.judge,p:ps,m:r.remark,u:r.inspector,bt:r.batch,t:r.ts});
+  }
+  let json = JSON.stringify(slim);
+  let b64 = btoa(unescape(encodeURIComponent(json)));
+  // 分块显示，避免文本框卡死
+  openModal('同步码 · 复制后到电脑上导入',
+    '共 ' + records.length + ' 条记录，长度 ' + b64.length + ' 字符。\n点「确定」复制到剪贴板，然后发到电脑（微信/QQ/邮件均可），在电脑上点「导入同步码」粘贴。\n记录较多时同步码会很长，建议分批或直接用电脑端的本地记录。',
+    b64, (v)=>{
+      navigator.clipboard?.writeText(v).then(()=>toast('已复制，去电脑端粘贴')).catch(()=>toast('复制失败，请手动全选复制'));
+    });
+  $('mArea').readOnly = true;
+  $('mOk').style.display = 'inline-flex';
+  $('mOk').textContent = '复制';
+});
+
+function shrinkDataUrl(dataUrl, maxW, q){
+  return new Promise(res=>{
+    if(!dataUrl) return res('');
+    const img = new Image();
+    img.onload = ()=>{
+      let {width:w, height:h} = img;
+      if(w > maxW){ h = Math.round(h*maxW/w); w = maxW; }
+      const cv = document.createElement('canvas');
+      cv.width=w; cv.height=h;
+      const ctx=cv.getContext('2d');
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img,0,0,w,h);
+      res(cv.toDataURL('image/jpeg', q));
+    };
+    img.onerror = ()=>res('');
+    img.src = dataUrl;
+  });
+}
+
+$('impCode').addEventListener('click', ()=>{
+  openModal('导入同步码','把手机生成的同步码粘贴到下面，点确定导入。导入的记录会追加到当前列表。','', v=>{
+    try{
+      let s = (v||'').trim();
+      if(!s){ return; }
+      const json = decodeURIComponent(escape(atob(s)));
+      const arr = JSON.parse(json);
+      if(!Array.isArray(arr)) throw new Error('格式不对');
+      const now = Date.now();
+      const add = arr.map((r,k)=>({
+        id:'r'+now+'-'+k+Math.random().toString(36).slice(2,6),
+        date:r.d||todayStr(), inspector:r.u||'', batch:r.bt||'',
+        item:r.i, brand:r.b, qty:r.q,
+        req:(ITEMS.find(x=>x.name===r.i)||{}).req||'',
+        judge:r.j, photos:r.p||[], remark:r.m||'', ts:r.t||now
+      }));
+      records = add.concat(records);
+      if(save()){ renderTable(); toast('已导入 '+add.length+' 条'); }
+    }catch(e){
+      toast('同步码格式不正确');
+    }
+  });
+});
+
+/* ============ 清空 ============ */
+$('clearAll').addEventListener('click', ()=>{
+  if(!records.length){ toast('没有记录'); return; }
+  if(!confirm('确定清空全部 '+records.length+' 条记录？清空后无法恢复，建议先导出。')) return;
+  records = [];
+  save(); renderTable();
+  toast('已清空');
+});
+
+/* ============ 导出 Excel（含照片嵌入） ============ */
+$('expXlsx').addEventListener('click', ()=>{
+  if(!records.length){ toast('没有可导出的记录'); return; }
+  toast('正在生成 Excel…');
+  setTimeout(()=>{ exportXlsx(); }, 30);
+});
+
+/* ============ 极简 xlsx 生成器（含照片嵌入） ============ */
+
+function colName(i){
+  let s=''; i=i+1;
+  while(i>0){ const m=(i-1)%26; s=String.fromCharCode(65+m)+s; i=Math.floor((i-1)/26); }
+  return s;
+}
+function xmlEsc(s){
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[m]))
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'');
+}
+function cjkLen(s){
+  let n=0; for(const ch of String(s)) n += (ch.charCodeAt(0)>255?2:1); return n;
+}
+function dataUrlToU8(d){
+  const b64=(d.split(',')[1]||'');
+  const bin=atob(b64);
+  const u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  return u8;
+}
+
+async function exportXlsx(){
+  const list = [...records].sort((a,b)=>a.ts-b.ts);
+  if(!list.length){ toast('没有可导出的记录'); return; }
+
+  /* 列：0日期 1物品 2品牌 3数量 4验收要求 5判定 6照片 7备注 8批次 9验收人 */
+  const colW = [12, 22, 14, 7, 58, 8, 26, 20, 16, 10];
+
+  /* 共享字符串 */
+  const sst=[], sstIdx={};
+  function S(t){
+    t = (t===null||t===undefined) ? '' : String(t);
+    if(!(t in sstIdx)){ sstIdx[t]=sst.length; sst.push(t); }
+    return sstIdx[t];
+  }
+
+  /* 每条记录占几行：照片每行放 3 张（竖排于照片列），与验收要求行数取大 */
+  const PPR = 3;              // 每行 3 张
+  const PH_CELL = 21;         // 单张照片高度（磅）
+  const layout = [];
+  let cur = 1;                // 0-based：第0行是表头，数据从第1行开始
+  list.forEach(rec=>{
+    const lines = String(rec.req||'').split('\n');
+    let vLines = 0;
+    lines.forEach(l=>{ vLines += Math.max(1, Math.ceil(cjkLen(l)/56)); });
+    const photoRows = Math.ceil((rec.photos.length||0)/PPR);
+    const span = Math.max(1, vLines, photoRows);
+    layout.push({start:cur, span, vLines, photoRows});
+    cur += span;
+  });
+  const lastRow = cur;        // 总行数（0-based 的下一行）
+
+  /* 生成单元格 */
+  function C(r, c, val, style){
+    const ref = colName(c) + (r+1);
+    if(val === null || val === undefined){
+      return '<c r="'+ref+'" s="'+style+'"/>';
+    }
+    if(typeof val === 'number'){
+      return '<c r="'+ref+'" s="'+style+'"><v>'+val+'</v></c>';
+    }
+    return '<c r="'+ref+'" s="'+style+'" t="s"><v>'+S(val)+'</v></c>';
+  }
+
+  let sheetRows='';
+
+  /* 表头 */
+  const hdr = ['验收日期','物品名称','品牌型号','数量','验收要求','照片','判定','备注','批次号','验收人'];
+  sheetRows += '<row r="1" ht="30" customHeight="1">' +
+    hdr.map((t,i)=>C(0,i,t,1)).join('') + '</row>';
+
+  /* 数据行 */
+  list.forEach((rec, ri)=>{
+    const L = layout[ri];
+    const nRow = L.span;
+    for(let k=0;k<nRow;k++){
+      const r = L.start + k;
+      let cells = '';
+      if(k === 0){
+        cells += C(r,0,rec.date,3);
+        cells += C(r,1,rec.item,3);
+        cells += C(r,2,rec.brand,3);
+        cells += C(r,3,Number(rec.qty)||0,4);
+        cells += C(r,4,rec.req,5);
+        cells += C(r,5,null,6);                       // 照片列留空给图片
+        cells += C(r,6, rec.judge==='ok'?'符合':'不符合', rec.judge==='ok'?7:8);
+        cells += C(r,7,rec.remark||'',5);
+        cells += C(r,8,rec.batch||'',3);
+        cells += C(r,9,rec.inspector||'',3);
+      } else {
+        [0,1,2,3,4,5,6,7,8,9].forEach(c=>{ cells += C(r,c,null,6); });
+      }
+      let h;
+      if(k === 0){
+        // 首行高度：验收要求需 8 行文字空间；同时兼顾照片首排高度
+        const textH = Math.min(L.vLines, 16) * 14 + 12;
+        h = Math.max(textH, PH_CELL * 1.6, 60);
+        // 若记录只有 1 行，直接给满
+        if(nRow === 1) h = Math.max(h, PH_CELL * PPR);
+      } else {
+        h = PH_CELL * PPR;
+      }
+      sheetRows += '<row r="'+(r+1)+'" ht="'+h+'" customHeight="1">'+cells+'</row>';
+    }
+  });
+
+  /* 合并单元格（竖向） */
+  const merges=[];
+  list.forEach((rec,ri)=>{
+    const L=layout[ri];
+    if(L.span>1){
+      ['A','B','C','D','E','G','H','I','J'].forEach(al=>{
+        merges.push(al+(L.start+1)+':'+al+(L.start+L.span));
+      });
+    }
+  });
+  const mergeXml = merges.length
+    ? '<mergeCells count="'+merges.length+'">'+merges.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>'
+    : '';
+
+  /* 图片锚点：照片列 = 第6列（索引5），每行 3 张横排 */
+  const imgs=[];
+  list.forEach((rec,ri)=>{
+    const L=layout[ri];
+    (rec.photos||[]).forEach((p,pi)=>{
+      const rowIdx = L.start + Math.floor(pi/PPR);
+      const colIdx = 5 + (pi%PPR);
+      imgs.push({row:rowIdx, col:colIdx, data:p});
+    });
+  });
+
+  /* ---------- XML 部件 ---------- */
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Default Extension="jpeg" ContentType="image/jpeg"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>
+<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>
+</Types>`;
+
+  const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+  const workbook = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="验收记录" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`;
+
+  const wbRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>
+</Relationships>`;
+
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="5">
+<font><sz val="10"/><name val="微软雅黑"/></font>
+<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="微软雅黑"/></font>
+<font><b/><sz val="10"/><color rgb="FF1A9C5B"/><name val="微软雅黑"/></font>
+<font><b/><sz val="10"/><color rgb="FFD0402F"/><name val="微软雅黑"/></font>
+<font><sz val="9"/><color rgb="FF333333"/><name val="微软雅黑"/></font>
+</fonts>
+<fills count="3">
+<fill><patternFill patternType="none"/></fill>
+<fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF2E75B6"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="2">
+<border><left/><right/><top/><bottom/><diagonal/></border>
+<border>
+<left style="thin"><color rgb="FFD0D7E2"/></left>
+<right style="thin"><color rgb="FFD0D7E2"/></right>
+<top style="thin"><color rgb="FFD0D7E2"/></top>
+<bottom style="thin"><color rgb="FFD0D7E2"/></bottom>
+<diagonal/></border>
+</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="10">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="常规" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+
+  const colsXml = colW.map((w,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+w+'" customWidth="1"/>').join('');
+
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<dimension ref="A1:J${lastRow}"/>
+<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="30"/>
+<cols>${colsXml}</cols>
+<sheetData>${sheetRows}</sheetData>
+${mergeXml}
+<pageMargins left="0.25" right="0.25" top="0.4" bottom="0.4" header="0.2" footer="0.2"/>
+<pageSetup paperSize="9" orientation="landscape"/>
+<drawing r:id="rId1"/>
+</worksheet>`;
+
+  const sheetRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing1.xml"/>
+</Relationships>`;
+
+  const sstXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sst.length}" uniqueCount="${sst.length}">` +
+    sst.map(t=>'<si><t xml:space="preserve">'+xmlEsc(t)+'</t></si>').join('') + '</sst>';
+
+  /* 图片：约 2.1cm，宽高按每列宽度适配 */
+  const EMU = 9525;               // 1px
+  const IMG_PX = 120;             // 120px ≈ 3.2cm
+  const SZ = IMG_PX * EMU;
+
+  const anchors = imgs.map((im,i)=>{
+    const rid='rIdImg'+(i+1);
+    return `<xdr:oneCellAnchor>
+<xdr:from><xdr:col>${im.col}</xdr:col><xdr:colOff>120000</xdr:colOff><xdr:row>${im.row}</xdr:row><xdr:rowOff>60000</xdr:rowOff></xdr:from>
+<xdr:ext cx="${SZ}" cy="${SZ}"/>
+<xdr:pic>
+<xdr:nvPicPr><xdr:cNvPr id="${i+2}" name="照片${i+1}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>
+<xdr:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
+<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${SZ}" cy="${SZ}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>
+</xdr:pic>
+<xdr:clientData/>
+</xdr:oneCellAnchor>`;
+  }).join('');
+
+  const drawing = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+${anchors}
+</xdr:wsDr>`;
+
+  const drawingRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    imgs.map((im,i)=>`<Relationship Id="rIdImg${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image${i+1}.jpeg"/>`).join('') +
+    '</Relationships>';
+
+  /* 打包 */
+  const files = [
+    ['[Content_Types].xml', contentTypes],
+    ['_rels/.rels', rootRels],
+    ['xl/workbook.xml', workbook],
+    ['xl/_rels/workbook.xml.rels', wbRels],
+    ['xl/styles.xml', styles],
+    ['xl/sharedStrings.xml', sstXml],
+    ['xl/worksheets/sheet1.xml', sheet],
+    ['xl/worksheets/_rels/sheet1.xml.rels', sheetRels],
+    ['xl/drawings/drawing1.xml', drawing],
+    ['xl/drawings/_rels/drawing1.xml.rels', drawingRels],
+  ];
+  imgs.forEach((im,i)=>files.push(['xl/media/image'+(i+1)+'.jpeg', dataUrlToU8(im.data)]));
+
+  const blob = await zipFiles(files);
+  const d=new Date();
+  const name='劳保用品验收记录_'+todayStr()+'_'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0')+'.xlsx';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  toast('已导出：'+name);
+}
+
+/* --- ZIP 写入（store 无压缩，兼容性最好） --- */
+function dataUrlToU8(d){
+  const b64 = d.split(',')[1] || '';
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+function strToU8(s){ return new TextEncoder().encode(s); }
+
+function crc32(u8){
+  let c, crc = 0xFFFFFFFF;
+  for(let i=0;i<u8.length;i++){
+    c = (crc ^ u8[i]) & 0xFF;
+    for(let k=0;k<8;k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    crc = (crc >>> 8) ^ c;
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+async function zipFiles(files){
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  const enc = new TextEncoder();
+
+  for(const [name, data] of files){
+    const nameU8 = enc.encode(name);
+    const dataU8 = typeof data === 'string' ? enc.encode(data) : data;
+    const crc = crc32(dataU8);
+    const size = dataU8.length;
+
+    const local = new Uint8Array(30 + nameU8.length);
+    const dv = new DataView(local.buffer);
+    dv.setUint32(0, 0x04034b50, true);
+    dv.setUint16(4, 20, true);
+    dv.setUint16(6, 0x0800, true);   // UTF-8 flag
+    dv.setUint16(8, 0, true);        // store
+    dv.setUint16(10, 0, true);
+    dv.setUint16(12, 0, true);
+    dv.setUint32(14, crc, true);
+    dv.setUint32(18, size, true);
+    dv.setUint32(22, size, true);
+    dv.setUint16(26, nameU8.length, true);
+    dv.setUint16(28, 0, true);
+    local.set(nameU8, 30);
+
+    chunks.push(local, dataU8);
+
+    const c = new Uint8Array(46 + nameU8.length);
+    const dv2 = new DataView(c.buffer);
+    dv2.setUint32(0, 0x02014b50, true);
+    dv2.setUint16(4, 20, true);
+    dv2.setUint16(6, 20, true);
+    dv2.setUint16(8, 0x0800, true);
+    dv2.setUint16(10, 0, true);
+    dv2.setUint16(12, 0, true);
+    dv2.setUint16(14, 0, true);
+    dv2.setUint32(16, crc, true);
+    dv2.setUint32(20, size, true);
+    dv2.setUint32(24, size, true);
+    dv2.setUint16(28, nameU8.length, true);
+    dv2.setUint16(30, 0, true);
+    dv2.setUint16(32, 0, true);
+    dv2.setUint16(34, 0, true);
+    dv2.setUint16(36, 0, true);
+    dv2.setUint32(38, 0, true);
+    dv2.setUint32(42, offset, true);
+    c.set(nameU8, 46);
+    central.push(c);
+
+    offset += local.length + dataU8.length;
+  }
+
+  const centralSize = central.reduce((a,b)=>a+b.length, 0);
+  const end = new Uint8Array(22);
+  const dv3 = new DataView(end.buffer);
+  dv3.setUint32(0, 0x06054b50, true);
+  dv3.setUint16(8, files.length, true);
+  dv3.setUint16(10, files.length, true);
+  dv3.setUint32(12, centralSize, true);
+  dv3.setUint32(16, offset, true);
+
+  return new Blob([...chunks, ...central, end], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+
+/* ============ 启动 ============ */
+/* 环境检测：file:// 或常见 App 内嵌浏览器给出提示 */
+  (function(){
+    const ua=navigator.userAgent;
+    const inApp = /MicroMessenger|QQ\/|DingTalk|Feishu|Lark|Alipay|Weibo|workbuddy/i.test(ua)
+      || location.protocol==='file:';
+    const hasCam = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    if(inApp || !hasCam){
+      const t=$('envTip');
+      t.style.display='block';
+      t.innerHTML = '<b>提示：</b>当前在' + (location.protocol==='file:' ? '本地文件模式' : '应用内置窗口') +
+        '打开，拍照功能受限。推荐：①把文件用 Safari / Chrome 浏览器打开（可正常拍照）；' +
+        '②或改用「从相册选择」先在系统相机拍好再选入；③长期方案建议用飞书/钉钉多维表单，拍照体验最佳。';
+    }
+  })();
+
+initItems();
+initDate();
+load();
+renderTable();
+renderPhotos();
+
+/* 调试/自动化入口 */
+window.__app = {
+  setRecords: r => { records = r; renderTable(); },
+  exportXlsx: () => exportXlsx()
+};
+</script>
+</body>
+</html>
