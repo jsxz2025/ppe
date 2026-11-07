@@ -190,8 +190,6 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
         <input type="text" id="inspector" placeholder="姓名">
       </div>
     </div>
-    <label class="fl">批次号（可选）</label>
-    <input type="text" id="batch" placeholder="如 RK20261103-01">
   </div>
 
   <!-- 录入 -->
@@ -507,7 +505,6 @@ $('save').addEventListener('click', ()=>{
     id: 'r'+Date.now()+Math.random().toString(36).slice(2,6),
     date: $('date').value || todayStr(),
     inspector: $('inspector').value.trim(),
-    batch: $('batch').value.trim(),
     item: it.name,
     brand: $('brand').value.trim() || it.brand,
     qty: +qty,
@@ -616,7 +613,7 @@ function packData(){
   // 精简结构 + 压缩照片到 640px 再打包
   return records.map(r=>({
     d:r.date, i:r.item, b:r.brand, q:r.qty, j:r.judge,
-    p:r.photos, m:r.remark, u:r.inspector, bt:r.batch, t:r.ts
+    p:r.photos, m:r.remark, u:r.inspector, t:r.ts
   }));
 }
 
@@ -630,7 +627,7 @@ $('syncCode').addEventListener('click', async ()=>{
     for(const p of r.photos){
       ps.push(await shrinkDataUrl(p, 640, 0.55));
     }
-    slim.push({d:r.date,i:r.item,b:r.brand,q:r.qty,j:r.judge,p:ps,m:r.remark,u:r.inspector,bt:r.batch,t:r.ts});
+    slim.push({d:r.date,i:r.item,b:r.brand,q:r.qty,j:r.judge,p:ps,m:r.remark,u:r.inspector,t:r.ts});
   }
   let json = JSON.stringify(slim);
   let b64 = btoa(unescape(encodeURIComponent(json)));
@@ -675,7 +672,7 @@ $('impCode').addEventListener('click', ()=>{
       const now = Date.now();
       const add = arr.map((r,k)=>({
         id:'r'+now+'-'+k+Math.random().toString(36).slice(2,6),
-        date:r.d||todayStr(), inspector:r.u||'', batch:r.bt||'',
+        date:r.d||todayStr(), inspector:r.u||'',
         item:r.i, brand:r.b, qty:r.q,
         req:(ITEMS.find(x=>x.name===r.i)||{}).req||'',
         judge:r.j, photos:r.p||[], remark:r.m||'', ts:r.t||now
@@ -730,8 +727,8 @@ async function exportXlsx(){
   const list = [...records].sort((a,b)=>a.ts-b.ts);
   if(!list.length){ toast('没有可导出的记录'); return; }
 
-  /* 列：0日期 1物品 2品牌 3数量 4验收要求 5判定 6照片 7备注 8批次 9验收人 */
-  const colW = [12, 22, 14, 7, 58, 8, 26, 20, 16, 10];
+  /* 列：0日期 1物品 2品牌 3数量 4验收要求 5照片 6判定 7验收人 8备注 */
+  const colW = [12, 22, 14, 7, 58, 26, 8, 10, 20];
 
   /* 共享字符串 */
   const sst=[], sstIdx={};
@@ -741,16 +738,14 @@ async function exportXlsx(){
     return sstIdx[t];
   }
 
-  /* 每条记录占几行：照片每行放 3 张（竖排于照片列），与验收要求行数取大 */
-  const PPR = 3;              // 每行 3 张
-  const PH_CELL = 21;         // 单张照片高度（磅）
+  /* 每条记录占几行：照片竖排于照片列（1 行 1 张），与验收要求行数取大 */
   const layout = [];
   let cur = 1;                // 0-based：第0行是表头，数据从第1行开始
   list.forEach(rec=>{
     const lines = String(rec.req||'').split('\n');
     let vLines = 0;
     lines.forEach(l=>{ vLines += Math.max(1, Math.ceil(cjkLen(l)/56)); });
-    const photoRows = Math.ceil((rec.photos.length||0)/PPR);
+    const photoRows = rec.photos.length||0;
     const span = Math.max(1, vLines, photoRows);
     layout.push({start:cur, span, vLines, photoRows});
     cur += span;
@@ -772,7 +767,7 @@ async function exportXlsx(){
   let sheetRows='';
 
   /* 表头 */
-  const hdr = ['验收日期','物品名称','品牌型号','数量','验收要求','照片','判定','备注','批次号','验收人'];
+  const hdr = ['验收日期','物品名称','品牌型号','数量','验收要求','照片','判定','验收人','备注'];
   sheetRows += '<row r="1" ht="30" customHeight="1">' +
     hdr.map((t,i)=>C(0,i,t,1)).join('') + '</row>';
 
@@ -791,21 +786,18 @@ async function exportXlsx(){
         cells += C(r,4,rec.req,5);
         cells += C(r,5,null,6);                       // 照片列留空给图片
         cells += C(r,6, rec.judge==='ok'?'符合':'不符合', rec.judge==='ok'?7:8);
-        cells += C(r,7,rec.remark||'',5);
-        cells += C(r,8,rec.batch||'',3);
-        cells += C(r,9,rec.inspector||'',3);
+        cells += C(r,7,rec.inspector||'',3);
+        cells += C(r,8,rec.remark||'',9);
       } else {
-        [0,1,2,3,4,5,6,7,8,9].forEach(c=>{ cells += C(r,c,null,6); });
+        [0,1,2,3,4,5,6,7,8].forEach(c=>{ cells += C(r,c,null,6); });
       }
       let h;
       if(k === 0){
-        // 首行高度：验收要求需 8 行文字空间；同时兼顾照片首排高度
+        // 首行高度：验收要求需 n 行文字空间；至少能容纳 1 张照片
         const textH = Math.min(L.vLines, 16) * 14 + 12;
-        h = Math.max(textH, PH_CELL * 1.6, 60);
-        // 若记录只有 1 行，直接给满
-        if(nRow === 1) h = Math.max(h, PH_CELL * PPR);
+        h = Math.max(textH, 64, 60);
       } else {
-        h = PH_CELL * PPR;
+        h = 64;                                        // 后续行 = 1 张照片的高度
       }
       sheetRows += '<row r="'+(r+1)+'" ht="'+h+'" customHeight="1">'+cells+'</row>';
     }
@@ -816,7 +808,7 @@ async function exportXlsx(){
   list.forEach((rec,ri)=>{
     const L=layout[ri];
     if(L.span>1){
-      ['A','B','C','D','E','G','H','I','J'].forEach(al=>{
+      ['A','B','C','D','E','G','H','I'].forEach(al=>{
         merges.push(al+(L.start+1)+':'+al+(L.start+L.span));
       });
     }
@@ -825,14 +817,12 @@ async function exportXlsx(){
     ? '<mergeCells count="'+merges.length+'">'+merges.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>'
     : '';
 
-  /* 图片锚点：照片列 = 第6列（索引5），每行 3 张横排 */
+  /* 图片锚点：照片全部贴在照片列（索引5），竖排 1 行 1 张 */
   const imgs=[];
   list.forEach((rec,ri)=>{
     const L=layout[ri];
     (rec.photos||[]).forEach((p,pi)=>{
-      const rowIdx = L.start + Math.floor(pi/PPR);
-      const colIdx = 5 + (pi%PPR);
-      imgs.push({row:rowIdx, col:colIdx, data:p});
+      imgs.push({row:L.start + pi, col:5, data:p});
     });
   });
 
@@ -896,7 +886,7 @@ async function exportXlsx(){
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
-<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="top" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
 <xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
@@ -909,7 +899,7 @@ async function exportXlsx(){
 
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<dimension ref="A1:J${lastRow}"/>
+<dimension ref="A1:I${lastRow}"/>
 <sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="30"/>
 <cols>${colsXml}</cols>
@@ -929,20 +919,20 @@ ${mergeXml}
 <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sst.length}" uniqueCount="${sst.length}">` +
     sst.map(t=>'<si><t xml:space="preserve">'+xmlEsc(t)+'</t></si>').join('') + '</sst>';
 
-  /* 图片：约 2.1cm，宽高按每列宽度适配 */
+  /* 图片：宽 110px × 高 82px（与照片列宽、行高 64 磅匹配） */
   const EMU = 9525;               // 1px
-  const IMG_PX = 120;             // 120px ≈ 3.2cm
-  const SZ = IMG_PX * EMU;
+  const IMG_W = 110, IMG_H = 82;
+  const CX = IMG_W * EMU, CY = IMG_H * EMU;
 
   const anchors = imgs.map((im,i)=>{
     const rid='rIdImg'+(i+1);
     return `<xdr:oneCellAnchor>
-<xdr:from><xdr:col>${im.col}</xdr:col><xdr:colOff>120000</xdr:colOff><xdr:row>${im.row}</xdr:row><xdr:rowOff>60000</xdr:rowOff></xdr:from>
-<xdr:ext cx="${SZ}" cy="${SZ}"/>
+<xdr:from><xdr:col>${im.col}</xdr:col><xdr:colOff>60000</xdr:colOff><xdr:row>${im.row}</xdr:row><xdr:rowOff>30000</xdr:rowOff></xdr:from>
+<xdr:ext cx="${CX}" cy="${CY}"/>
 <xdr:pic>
 <xdr:nvPicPr><xdr:cNvPr id="${i+2}" name="照片${i+1}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>
 <xdr:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>
-<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${SZ}" cy="${SZ}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>
+<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${CX}" cy="${CY}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>
 </xdr:pic>
 <xdr:clientData/>
 </xdr:oneCellAnchor>`;
