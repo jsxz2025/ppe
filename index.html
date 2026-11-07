@@ -134,7 +134,8 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
   padding:7px 14px;border-radius:8px;font-family:inherit}
 .camstage{flex:1 1 auto;position:relative;overflow:hidden;background:#000;
   display:flex;align-items:center;justify-content:center;min-height:0}
-.camstage video{width:100%;height:100%;object-fit:cover;display:block;background:#000}
+.camslot{position:relative;width:100%;height:100%;background:#000}
+.camslot video{width:100%;height:100%;object-fit:cover;display:block;background:#000}
 .camhint{position:absolute;left:0;right:0;bottom:12px;text-align:center;color:#fff;
   font-size:13px;opacity:.75;pointer-events:none}
 .cambottom{flex:0 0 auto;display:flex;align-items:center;justify-content:space-around;
@@ -284,11 +285,14 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 <div class="viewer" id="viewer"><span class="close" id="vClose">×</span><img id="vImg" alt=""></div>
 <div class="campanel" id="camModal">
   <div class="camtop">
+    <button id="camOrient" class="camx" type="button">⇕ 竖版</button>
     <span class="camtitle">拍照</span>
     <button id="camCancel" class="camx">✕ 关闭</button>
   </div>
-  <div class="camstage">
-    <video id="camVideo" autoplay playsinline webkit-playsinline muted></video>
+  <div class="camstage" id="camStage">
+    <div class="camslot" id="camSlot">
+      <video id="camVideo" autoplay playsinline webkit-playsinline muted></video>
+    </div>
     <div class="camhint" id="camHint">正在启动相机…</div>
   </div>
   <div class="cambottom">
@@ -445,10 +449,31 @@ document.querySelectorAll('.jbtn').forEach(b=>{
 /* ============ 照片 ============ */
 /* ---- 网页相机（getUserMedia）---- */
 let camStream=null, camFacing='environment';
+/* 拍摄方向：'port' 竖版 3:4 / 'land' 横版 4:3。取景框会跟着变，所见即所得 */
+let orientMode='port';
+function layoutSlot(){
+  const st=$('camStage'), s=$('camSlot');
+  if(!st || !s || !camStream) return;
+  const W=st.clientWidth, H=st.clientHeight;
+  if(!W || !H) return;
+  const ratio = orientMode==='land' ? 4/3 : 3/4;
+  let w=W, h=W/ratio;
+  if(h>H){ h=H; w=Math.round(H*ratio); }
+  s.style.width=Math.round(w)+'px';
+  s.style.height=Math.round(h)+'px';
+}
+function setOrientBtn(){
+  $('camOrient').textContent = orientMode==='land' ? '⇔ 横版' : '⇕ 竖版';
+}
+window.addEventListener('resize', ()=>{ if(camStream){ layoutSlot(); } });
+
 function camOpen(){
   const v=$('camVideo');
+  orientMode = window.innerWidth > window.innerHeight ? 'land' : 'port';
+  setOrientBtn();
   $('camHint').textContent='正在启动相机…';
   $('camModal').classList.add('show');
+  requestAnimationFrame(layoutSlot);
   getUserMedia({video:{facingMode:{ideal:camFacing}, width:{ideal:1920}}, audio:false})
   .then(st=>{
     camStream=st; v.srcObject=st;
@@ -456,12 +481,18 @@ function camOpen(){
     v.muted=true;
     const p=v.play(); if(p&&p.catch) p.catch(()=>{});
     $('camHint').textContent='';
+    layoutSlot();
   }).catch(err=>{
     $('camModal').classList.remove('show');
     toast('相机打开失败：'+(err && err.name ? err.name : '未知')+ '，改用系统相机');
     $('camInput').click();
   });
 }
+$('camOrient').addEventListener('click', ()=>{
+  orientMode = orientMode==='land' ? 'port' : 'land';
+  setOrientBtn(); layoutSlot();
+  toast(orientMode==='land' ? '横版拍摄（手机横着拿）' : '竖版拍摄（手机竖着拿）');
+});
 /* 兼容老版 Safari 的前缀写法 */
 function getUserMedia(c){
   const nav=navigator;
@@ -480,10 +511,9 @@ $('camShot').addEventListener('click', ()=>{
   if(!v.videoWidth){ toast('相机未就绪，稍等一下再点'); return; }
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
 
-  /* 按取景框实际显示区域裁切：手机怎么拿（横/竖），拍出来就是什么方向，
-     与屏幕上看到的取景画面完全一致 */
+  /* 按取景框（当前横版/竖版模式对应的画面区域）裁切：拍到什么就是什么 */
   const vw=v.videoWidth, vh=v.videoHeight;
-  const rc=v.getBoundingClientRect();
+  const rc=$('camSlot').getBoundingClientRect();
   const boxRatio = (rc.width>0 && rc.height>0) ? rc.width/rc.height : vw/vh;
   let sw=vw, sh=vh, sx=0, sy=0;
   if(vw/vh > boxRatio){            // 视频更宽 → 裁掉左右
