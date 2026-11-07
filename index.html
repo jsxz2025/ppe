@@ -31,6 +31,9 @@ label.fl{display:block;font-size:13px;color:var(--sub);margin:10px 0 5px}
 label.fl:first-of-type{margin-top:0}
 input,select,textarea{width:100%;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;
   font-size:15px;font-family:inherit;color:var(--txt);background:#fff;outline:none;transition:.15s}
+/* 单行输入统一高度，避免日期框比文本框矮/高（iOS 日期控件高度由系统决定） */
+input,select{box-sizing:border-box;height:44px}
+input[type=date]{padding:0 12px;min-height:44px;line-height:44px}
 input:focus,select:focus,textarea:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(46,117,182,.12)}
 textarea{resize:vertical;min-height:56px}
 select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7686' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -142,6 +145,19 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 .camshot:active span{transform:scale(.9);background:#d8e3f0}
 .camside{background:rgba(255,255,255,.16);border:0;color:#fff;font-size:14px;
   padding:11px 14px;border-radius:10px;font-family:inherit;min-width:64px}
+/* 横屏：取景画面占满全屏，按钮浮在画面上，避免取景框被压成一条 */
+@media (orientation:landscape){
+  .campanel.show{display:block}
+  .camstage{position:absolute;inset:0}
+  .camtop{position:absolute;top:0;left:0;right:0;z-index:2;
+    background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0))}
+  .cambottom{position:absolute;bottom:0;left:0;right:0;z-index:2;
+    background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.55));
+    padding:6px 24px calc(8px + env(safe-area-inset-bottom))}
+  .camshot{width:56px;height:56px;border-width:3px}
+  .camshot span{width:42px;height:42px}
+  .camhint{bottom:6px;font-size:12px}
+}
 
 .sticky-bottom{position:sticky;bottom:0;background:#fff;padding-top:10px;margin-top:6px}
 .kv{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px dashed #eef1f6}
@@ -331,8 +347,22 @@ function todayStr(){
   const d = new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
+/* 照片统一结构 {d:dataURL, w:宽, h:高}，兼容早期的纯字符串 */
+function normPhotos(arr){
+  return (arr||[]).map(p=>{
+    if(!p) return null;
+    if(typeof p === 'string') return {d:p, w:0, h:0};
+    return {d: p.d || p.data || '', w: p.w || 0, h: p.h || 0};
+  }).filter(x=>x && x.d);
+}
+function phSrc(p){ return !p ? '' : (typeof p === 'string' ? p : (p.d || p.data || '')); }
+function normRecords(arr){
+  if(!Array.isArray(arr)) return [];
+  arr.forEach(r=>{ r.photos = normPhotos(r.photos); });
+  return arr;
+}
 function load(){
-  try{ records = JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ records = []; }
+  try{ records = normRecords(JSON.parse(localStorage.getItem(KEY)||'[]')); }catch(e){ records = []; }
 }
 function save(){
   /* 已切换到大容量模式：直接写 IndexedDB，不再碰 localStorage */
@@ -365,7 +395,7 @@ if(typeof indexedDB !== 'undefined'){
     if(v !== undefined){
       try{
         const arr = JSON.parse(v);
-        if(Array.isArray(arr) && arr.length >= records.length){ records = arr; renderTable(); }
+        if(Array.isArray(arr) && arr.length >= records.length){ records = normRecords(arr); renderTable(); }
       }catch(e){}
     }
   }).catch(()=>{});
@@ -448,16 +478,31 @@ function camClose(){
 $('camShot').addEventListener('click', ()=>{
   const v=$('camVideo');
   if(!v.videoWidth){ toast('相机未就绪，稍等一下再点'); return; }
-  const cv=document.createElement('canvas');
-  const maxW=1280;
-  let w=v.videoWidth, h=v.videoHeight;
-  if(w>maxW){ h=Math.round(h*maxW/w); w=maxW; }
-  cv.width=w; cv.height=h;
-  cv.getContext('2d').drawImage(v,0,0,w,h);
-  const data=cv.toDataURL('image/jpeg',0.72);
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
-  photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data});
-  renderPhotos(); camClose(); toast('已拍摄');
+
+  /* 按取景框实际显示区域裁切：手机怎么拿（横/竖），拍出来就是什么方向，
+     与屏幕上看到的取景画面完全一致 */
+  const vw=v.videoWidth, vh=v.videoHeight;
+  const rc=v.getBoundingClientRect();
+  const boxRatio = (rc.width>0 && rc.height>0) ? rc.width/rc.height : vw/vh;
+  let sw=vw, sh=vh, sx=0, sy=0;
+  if(vw/vh > boxRatio){            // 视频更宽 → 裁掉左右
+    sw = Math.round(vh*boxRatio); sx = Math.round((vw-sw)/2);
+  } else {                         // 视频更高 → 裁掉上下
+    sh = Math.round(vw/boxRatio); sy = Math.round((vh-sh)/2);
+  }
+  const maxSide=1280;
+  let ow=sw, oh=sh;
+  if(Math.max(ow,oh) > maxSide){
+    const k = maxSide/Math.max(ow,oh);
+    ow = Math.round(ow*k); oh = Math.round(oh*k);
+  }
+  const cv=document.createElement('canvas');
+  cv.width=ow; cv.height=oh;
+  cv.getContext('2d').drawImage(v, sx, sy, sw, sh, 0, 0, ow, oh);
+  const data=cv.toDataURL('image/jpeg',0.72);
+  photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
+  renderPhotos(); camClose(); toast(ow>=oh ? '已拍摄（横版）' : '已拍摄（竖版）');
 });
 $('camAlbum').addEventListener('click', ()=>{ camClose(); $('fileInput').click(); });
 $('camSwitch').addEventListener('click', ()=>{
@@ -486,8 +531,8 @@ $('btnGal').addEventListener('click', ()=>$('fileInput').click());
 async function handleFiles(files){
   for(const f of files){
     if(photoBuf.length >= 9){ toast('最多9张照片'); break; }
-    const data = await compress(f);
-    if(data) photoBuf.push({id: 'p'+Date.now()+Math.random().toString(36).slice(2,6), data});
+    const r = await compress(f);
+    if(r && r.data) photoBuf.push({id: 'p'+Date.now()+Math.random().toString(36).slice(2,6), data:r.data, w:r.w, h:r.h});
   }
   renderPhotos();
 }
@@ -500,22 +545,28 @@ $('camInput').addEventListener('change', async e=>{
   await handleFiles(files);
 });
 
-function compress(file, maxW=1280, quality=0.72){
+function compress(file, maxSide=1280, quality=0.72){
   return new Promise(res=>{
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = ()=>{
-      let {width:w, height:h} = img;
-      if(w > maxW){ h = Math.round(h * maxW / w); w = maxW; }
+      /* 用 naturalWidth/Height：浏览器已按 EXIF 方向校正，横拍存横、竖拍存竖 */
+      let w = img.naturalWidth || img.width;
+      let h = img.naturalHeight || img.height;
+      if(!w || !h){ URL.revokeObjectURL(url); return res(null); }
+      if(Math.max(w,h) > maxSide){
+        const k = maxSide / Math.max(w,h);
+        w = Math.round(w*k); h = Math.round(h*k);
+      }
       const cv = document.createElement('canvas');
       cv.width = w; cv.height = h;
       const ctx = cv.getContext('2d');
       ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      res(cv.toDataURL('image/jpeg', quality));
+      res({data: cv.toDataURL('image/jpeg', quality), w, h});
     };
-    img.onerror = ()=>{ URL.revokeObjectURL(url); res(''); };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); res(null); };
     img.src = url;
   });
 }
@@ -562,7 +613,7 @@ $('save').addEventListener('click', ()=>{
     qty: +qty,
     req: it.req,
     judge: judge,
-    photos: photoBuf.map(p=>p.data),
+    photos: photoBuf.map(p=>({d:p.data, w:p.w, h:p.h})),
     remark: $('remark').value.trim(),
     ts: Date.now()
   };
@@ -622,11 +673,11 @@ function renderTable(){
       '<td style="text-align:right">'+esc(r.qty)+'</td>'+
       '<td><span class="tag '+(r.judge==='ok'?'ok':'no')+'">'+(r.judge==='ok'?'符合':'不符合')+'</span></td>'+
       '<td>'+(r.photos.length
-        ? '<img class="thumb" src="'+r.photos[0]+'" alt=""><span style="color:#8d99a9;font-size:11px"> '+r.photos.length+'</span>'
+        ? '<img class="thumb" src="'+phSrc(r.photos[0])+'" alt=""><span style="color:#8d99a9;font-size:11px"> '+r.photos.length+'</span>'
         : '<span style="color:#c8cfda">—</span>')+'</td>'+
       '<td style="max-width:130px;color:#6b7686">'+esc(r.remark||'—')+'</td>'+
       '<td><button class="btn sm danger" style="padding:3px 8px;font-size:12px">删</button></td>';
-    tr.querySelector('.thumb')?.addEventListener('click', ()=>openViewer(r.photos[0]));
+    tr.querySelector('.thumb')?.addEventListener('click', ()=>openViewer(phSrc(r.photos[0])));
     tr.querySelector('button').addEventListener('click', ()=>{
       if(!confirm('删除这条记录？'))return;
       records = records.filter(x=>x.id!==r.id);
@@ -677,7 +728,8 @@ $('syncCode').addEventListener('click', async ()=>{
   for(const r of records){
     const ps = [];
     for(const p of r.photos){
-      ps.push(await shrinkDataUrl(p, 640, 0.55));
+      const s = await shrinkDataUrl(phSrc(p), 640, 0.55);
+      if(s && s.d) ps.push(s);
     }
     slim.push({d:r.date,i:r.item,b:r.brand,q:r.qty,j:r.judge,p:ps,m:r.remark,u:r.inspector,t:r.ts});
   }
@@ -694,21 +746,26 @@ $('syncCode').addEventListener('click', async ()=>{
   $('mOk').textContent = '复制';
 });
 
-function shrinkDataUrl(dataUrl, maxW, q){
+function shrinkDataUrl(dataUrl, maxSide, q){
   return new Promise(res=>{
-    if(!dataUrl) return res('');
+    if(!dataUrl) return res(null);
     const img = new Image();
     img.onload = ()=>{
-      let {width:w, height:h} = img;
-      if(w > maxW){ h = Math.round(h*maxW/w); w = maxW; }
+      let w = img.naturalWidth || img.width;
+      let h = img.naturalHeight || img.height;
+      if(!w || !h) return res(null);
+      if(Math.max(w,h) > maxSide){
+        const k = maxSide / Math.max(w,h);
+        w = Math.round(w*k); h = Math.round(h*k);
+      }
       const cv = document.createElement('canvas');
       cv.width=w; cv.height=h;
       const ctx=cv.getContext('2d');
       ctx.fillStyle='#fff'; ctx.fillRect(0,0,w,h);
       ctx.drawImage(img,0,0,w,h);
-      res(cv.toDataURL('image/jpeg', q));
+      res({d: cv.toDataURL('image/jpeg', q), w, h});
     };
-    img.onerror = ()=>res('');
+    img.onerror = ()=>res(null);
     img.src = dataUrl;
   });
 }
@@ -727,7 +784,7 @@ $('impCode').addEventListener('click', ()=>{
         date:r.d||todayStr(), inspector:r.u||'',
         item:r.i, brand:r.b, qty:r.q,
         req:(ITEMS.find(x=>x.name===r.i)||{}).req||'',
-        judge:r.j, photos:r.p||[], remark:r.m||'', ts:r.t||now
+        judge:r.j, photos:normPhotos(r.p), remark:r.m||'', ts:r.t||now
       }));
       records = add.concat(records);
       if(save()){ renderTable(); toast('已导入 '+add.length+' 条'); }
@@ -790,6 +847,16 @@ async function exportXlsx(){
     return sstIdx[t];
   }
 
+  /* 照片显示尺寸：严格保持原始宽高比，横拍横版、竖拍竖版，Excel 里不会被拉变形 */
+  const EMU = 9525;                   // 1px = 9525 EMU
+  const MAX_W = 168, MAX_H = 132;     // 单张照片最大显示尺寸（px）
+  function photoSize(p){
+    let w = p.w || 0, h = p.h || 0;
+    if(!w || !h){ w = 4; h = 3; }     // 早期记录无尺寸信息 → 按 4:3 横版兜底
+    const s = Math.min(MAX_W/w, MAX_H/h);
+    return { w: Math.max(20, Math.round(w*s)), h: Math.max(20, Math.round(h*s)) };
+  }
+
   /* 每条记录占几行：照片竖排于照片列（1 行 1 张），与验收要求行数取大 */
   const layout = [];
   let cur = 1;                // 0-based：第0行是表头，数据从第1行开始
@@ -797,9 +864,13 @@ async function exportXlsx(){
     const lines = String(rec.req||'').split('\n');
     let vLines = 0;
     lines.forEach(l=>{ vLines += Math.max(1, Math.ceil(cjkLen(l)/56)); });
-    const photoRows = rec.photos.length||0;
+    const ph = (rec.photos||[]).map(p=>{
+      const sz = photoSize(p);
+      return { data: phSrc(p), w: sz.w, h: sz.h };
+    });
+    const photoRows = ph.length;
     const span = Math.max(1, vLines, photoRows);
-    layout.push({start:cur, span, vLines, photoRows});
+    layout.push({start:cur, span, vLines, photoRows, ph});
     cur += span;
   });
   const lastRow = cur;        // 总行数（0-based 的下一行）
@@ -844,12 +915,14 @@ async function exportXlsx(){
         [0,1,2,3,4,5,6,7,8].forEach(c=>{ cells += C(r,c,null,6); });
       }
       let h;
+      const imgH = (L.ph && L.ph[k]) ? L.ph[k].h : 0;
+      const rowNeed = imgH ? Math.round(imgH/1.3333) + 8 : 0;
       if(k === 0){
-        // 首行高度：验收要求需 n 行文字空间；至少能容纳 1 张照片
+        // 首行高度：验收要求需 n 行文字空间；至少能容纳本行照片
         const textH = Math.min(L.vLines, 16) * 14 + 12;
-        h = Math.max(textH, 64, 60);
+        h = Math.max(textH, rowNeed, 60);
       } else {
-        h = 64;                                        // 后续行 = 1 张照片的高度
+        h = Math.max(rowNeed, 40);                     // 后续行 = 该张照片的高度
       }
       sheetRows += '<row r="'+(r+1)+'" ht="'+h+'" customHeight="1">'+cells+'</row>';
     }
@@ -869,12 +942,12 @@ async function exportXlsx(){
     ? '<mergeCells count="'+merges.length+'">'+merges.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>'
     : '';
 
-  /* 图片锚点：照片全部贴在照片列（索引5），竖排 1 行 1 张 */
+  /* 图片锚点：照片全部贴在照片列（索引5），竖排 1 行 1 张，按各自原始比例 */
   const imgs=[];
   list.forEach((rec,ri)=>{
     const L=layout[ri];
-    (rec.photos||[]).forEach((p,pi)=>{
-      imgs.push({row:L.start + pi, col:5, data:p});
+    (L.ph||[]).forEach((p,pi)=>{
+      imgs.push({row:L.start + pi, col:5, data:p.data, cx:p.w*EMU, cy:p.h*EMU});
     });
   });
 
@@ -971,15 +1044,12 @@ ${mergeXml}
 <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sst.length}" uniqueCount="${sst.length}">` +
     sst.map(t=>'<si><t xml:space="preserve">'+xmlEsc(t)+'</t></si>').join('') + '</sst>';
 
-  /* 图片：宽 110px × 高 82px（与照片列宽、行高 64 磅匹配） */
-  const EMU = 9525;               // 1px
-  const IMG_W = 110, IMG_H = 82;
-  const CX = IMG_W * EMU, CY = IMG_H * EMU;
-
+  /* 图片按每张自己的比例输出（横版 cx>cy，竖版 cy>cx） */
   const anchors = imgs.map((im,i)=>{
     const rid='rIdImg'+(i+1);
+    const CX = im.cx, CY = im.cy;
     return `<xdr:oneCellAnchor>
-<xdr:from><xdr:col>${im.col}</xdr:col><xdr:colOff>60000</xdr:colOff><xdr:row>${im.row}</xdr:row><xdr:rowOff>30000</xdr:rowOff></xdr:from>
+<xdr:from><xdr:col>${im.col}</xdr:col><xdr:colOff>50000</xdr:colOff><xdr:row>${im.row}</xdr:row><xdr:rowOff>25000</xdr:rowOff></xdr:from>
 <xdr:ext cx="${CX}" cy="${CY}"/>
 <xdr:pic>
 <xdr:nvPicPr><xdr:cNvPr id="${i+2}" name="照片${i+1}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>
