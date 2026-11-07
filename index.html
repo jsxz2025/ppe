@@ -451,6 +451,30 @@ document.querySelectorAll('.jbtn').forEach(b=>{
 let camStream=null, camFacing='environment';
 /* 拍摄方向：'port' 竖版 3:4 / 'land' 横版 4:3。取景框会跟着变，所见即所得 */
 let orientMode='port';
+/* 手机实际握持方向检测：横握（屏幕未旋转）时拍照自动把画面转正 */
+let devRot = 0;              // 0 = 竖握；±90 = 横握时的画面修正角
+let oriAsked = false;
+function onDevOri(e){
+  const g = e.gamma || 0;    // 设备左右倾斜角：右侧向下为正
+  if(Math.abs(g) > 45){
+    devRot = g > 0 ? -90 : 90;   // 横握 → 画面旋转 90° 转正
+  } else {
+    devRot = 0;                  // 竖握（或平放）→ 不旋转
+  }
+}
+function enableOrientation(){
+  if(oriAsked) return;
+  oriAsked = true;
+  try{
+    if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      DeviceOrientationEvent.requestPermission().then(r=>{
+        if(r === 'granted') window.addEventListener('deviceorientation', onDevOri);
+      }).catch(()=>{});
+    } else if(typeof DeviceOrientationEvent !== 'undefined'){
+      window.addEventListener('deviceorientation', onDevOri);
+    }
+  }catch(e){}
+}
 function layoutSlot(){
   const st=$('camStage'), s=$('camSlot');
   if(!st || !s || !camStream) return;
@@ -471,6 +495,7 @@ function camOpen(){
   const v=$('camVideo');
   orientMode = window.innerWidth > window.innerHeight ? 'land' : 'port';
   setOrientBtn();
+  enableOrientation();          // 请求重力方向权限（iOS 弹一次“允许访问动作与方向”）
   $('camHint').textContent='正在启动相机…';
   $('camModal').classList.add('show');
   requestAnimationFrame(layoutSlot);
@@ -521,18 +546,28 @@ $('camShot').addEventListener('click', ()=>{
   } else {                         // 视频更高 → 裁掉上下
     sh = Math.round(vw/boxRatio); sy = Math.round((vh-sh)/2);
   }
-  const maxSide=1280;
+  /* 手机横握（屏幕没转）时自动把画面转正：内容方向以重力为准 */
   let ow=sw, oh=sh;
+  if(devRot !== 0){ ow=sh; oh=sw; }            // 旋转 90° 后宽高互换
+  const maxSide=1280;
   if(Math.max(ow,oh) > maxSide){
     const k = maxSide/Math.max(ow,oh);
     ow = Math.round(ow*k); oh = Math.round(oh*k);
   }
   const cv=document.createElement('canvas');
   cv.width=ow; cv.height=oh;
-  cv.getContext('2d').drawImage(v, sx, sy, sw, sh, 0, 0, ow, oh);
+  const ctx=cv.getContext('2d');
+  if(devRot === 0){
+    ctx.drawImage(v, sx, sy, sw, sh, 0, 0, ow, oh);
+  }else{
+    ctx.translate(ow/2, oh/2);
+    ctx.rotate(devRot*Math.PI/180);
+    ctx.drawImage(v, sx, sy, sw, sh, -sw/2, -sh/2, sw, sh);
+  }
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
-  renderPhotos(); camClose(); toast(ow>=oh ? '已拍摄（横版）' : '已拍摄（竖版）');
+  renderPhotos(); camClose();
+  toast(ow>=oh ? (devRot!==0?'已拍摄（横版·已自动转正）':'已拍摄（横版）') : '已拍摄（竖版）');
 });
 $('camAlbum').addEventListener('click', ()=>{ camClose(); $('fileInput').click(); });
 $('camSwitch').addEventListener('click', ()=>{
