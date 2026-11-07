@@ -335,19 +335,27 @@ function load(){
   try{ records = JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ records = []; }
 }
 function save(){
+  /* 已切换到大容量模式：直接写 IndexedDB，不再碰 localStorage */
+  if(useIDB){
+    idbSet(JSON.stringify(records)).then(()=>{
+      toast('已保存（大容量存储）');
+    }).catch(()=>{ toast('存储失败，请导出后清理旧记录'); });
+    return true;
+  }
   try{
     localStorage.setItem(KEY, JSON.stringify(records));
     return true;
   }catch(e){
     /* localStorage 满（约5MB）→ 首次溢出时自动切换到 IndexedDB（数百MB） */
-    if(!useIDB && typeof indexedDB !== 'undefined'){
+    if(typeof indexedDB !== 'undefined'){
       useIDB = true;
       try{ localStorage.removeItem(KEY); }catch(_){}
-      idbSet(JSON.stringify(records)).catch(()=>{});
-      toast('已切换到大容量存储模式，可继续录入');
+      idbSet(JSON.stringify(records)).then(()=>{
+        toast('已切换到大容量存储，之后可放心录入');
+      }).catch(()=>{ toast('存储失败，请导出后清理旧记录'); });
       return true;
     }
-    toast('存储失败，请导出后清理旧记录');
+    toast('存储空间不足，请导出后清理旧记录');
     return false;
   }
 }
