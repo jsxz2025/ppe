@@ -546,9 +546,9 @@ document.querySelectorAll('.jbtn').forEach(b=>{
 let camStream=null, camFacing='environment';
 /* 拍摄方向：'port' 竖版 3:4 / 'land' 横版 4:3。取景框会跟着变，所见即所得 */
 let orientMode='port';
-/* 横拍转正：iPhone 摄像头原始画面就是横向的，向左翻握持（快门在右手）拍出来就是正的横版，
-   默认不旋转；若机型方向不同，点相机里的转正按钮切换：⟲左转 / ⟳右转 / ⟲不转（记忆在本机） */
-let rotMode = 0;
+/* 横拍转正：默认 ⟲左转（对应"手机向左翻、快门在右手"）；预览实时显示转正效果，所见即所得，
+   方向不对点相机顶部按钮切换：⟲左转 / ⟳右转 / ⟲不转（记忆在本机） */
+let rotMode = 90;
 try{ const r = parseInt(localStorage.getItem('ppe_camrot')); if(r===0||r===90||r===-90) rotMode = r; }catch(e){}
 function saveRot(){ try{ localStorage.setItem('ppe_camrot', String(rotMode)); }catch(e){} }
 function setRotBtn(){
@@ -564,6 +564,14 @@ function layoutSlot(){
   if(h>H){ h=H; w=Math.round(H*ratio); }
   s.style.width=Math.round(w)+'px';
   s.style.height=Math.round(h)+'px';
+  /* 预览同步旋转：取景框里看到的方向 = 拍出来的方向（所见即所得） */
+  const v=$('camVideo');
+  if(orientMode==='land' && rotMode!==0){
+    v.style.cssText = 'position:absolute;left:50%;top:50%;width:'+Math.round(h)+'px;height:'+Math.round(w)+
+      'px;transform:translate(-50%,-50%) rotate('+rotMode+'deg)';
+  } else {
+    v.style.cssText = '';
+  }
 }
 function setOrientBtn(){
   $('camOrient').textContent = orientMode==='land' ? '⇔ 横版' : '⇕ 竖版';
@@ -600,10 +608,10 @@ $('camOrient').addEventListener('click', ()=>{
   setRotBtn();
   toast(orientMode==='land' ? '横版拍摄（横握手机，画面自动为正）' : '竖版拍摄（竖着拿）');
 });
-/* 横拍转正方向：左转（默认，快门在右手）/ 右转 / 不转，点按钮循环切换 */
+/* 横拍转正方向：左转（默认）/ 右转 / 不转，点按钮循环切换，预览立即跟着变 */
 $('camRot').addEventListener('click', ()=>{
   rotMode = rotMode===90 ? -90 : (rotMode===-90 ? 0 : 90);
-  setRotBtn(); saveRot();
+  setRotBtn(); saveRot(); layoutSlot();
   toast(rotMode===90 ? '转正方向：左翻握持（快门在右手）' : rotMode===-90 ? '转正方向：右翻握持（快门在左手）' : '已关闭自动转正');
 });
 /* 兼容老版 Safari 的前缀写法 */
@@ -624,20 +632,28 @@ $('camShot').addEventListener('click', ()=>{
   if(!v.videoWidth){ toast('相机未就绪，稍等一下再点'); return; }
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
 
-  /* 按取景框（当前横版/竖版模式对应的画面区域）裁切：拍到什么就是什么 */
-  const vw=v.videoWidth, vh=v.videoHeight;
-  const rc=$('camSlot').getBoundingClientRect();
-  const boxRatio = (rc.width>0 && rc.height>0) ? rc.width/rc.height : vw/vh;
-  let sw=vw, sh=vh, sx=0, sy=0;
-  if(vw/vh > boxRatio){            // 视频更宽 → 裁掉左右
-    sw = Math.round(vh*boxRatio); sx = Math.round((vw-sw)/2);
-  } else {                         // 视频更高 → 裁掉上下
-    sh = Math.round(vw/boxRatio); sy = Math.round((vh-sh)/2);
-  }
-  /* 横版模式按固定方向转正（默认：手机向左翻、快门在右手 → 顺时针转90°） */
+  /* 横版模式按固定方向转正：先旋转整帧（与预览一致），再按取景框比例居中裁切，所见即所得 */
   const rot = orientMode==='land' ? rotMode : 0;
-  let ow=sw, oh=sh;
-  if(rot !== 0){ ow=sh; oh=sw; }               // 旋转 90° 后宽高互换
+  const fw=v.videoWidth, fh=v.videoHeight;
+  let srcV=v, sw=fw, sh=fh;
+  if(rot !== 0){
+    const tmp=document.createElement('canvas');
+    tmp.width=fh; tmp.height=fw;                 // 旋转后宽高互换
+    const tc=tmp.getContext('2d');
+    tc.translate(tmp.width/2, tmp.height/2);
+    tc.rotate(rot*Math.PI/180);
+    tc.drawImage(v, -fw/2, -fh/2);
+    srcV=tmp; sw=tmp.width; sh=tmp.height;
+  }
+  const rc=$('camSlot').getBoundingClientRect();
+  const boxRatio = (rc.width>0 && rc.height>0) ? rc.width/rc.height : sw/sh;
+  let cw=sw, ch=sh, cx=0, cy=0;
+  if(sw/sh > boxRatio){                          // 画面更宽 → 裁掉左右
+    cw=Math.round(sh*boxRatio); cx=Math.round((sw-cw)/2);
+  } else {                                       // 画面更高 → 裁掉上下
+    ch=Math.round(sw/boxRatio); cy=Math.round((sh-ch)/2);
+  }
+  let ow=cw, oh=ch;
   const maxSide=1280;
   if(Math.max(ow,oh) > maxSide){
     const k = maxSide/Math.max(ow,oh);
@@ -645,14 +661,7 @@ $('camShot').addEventListener('click', ()=>{
   }
   const cv=document.createElement('canvas');
   cv.width=ow; cv.height=oh;
-  const ctx=cv.getContext('2d');
-  if(rot === 0){
-    ctx.drawImage(v, sx, sy, sw, sh, 0, 0, ow, oh);
-  }else{
-    ctx.translate(ow/2, oh/2);
-    ctx.rotate(rot*Math.PI/180);
-    ctx.drawImage(v, sx, sy, sw, sh, -sw/2, -sh/2, sw, sh);
-  }
+  cv.getContext('2d').drawImage(srcV, cx, cy, cw, ch, 0, 0, ow, oh);
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
   renderPhotos(); camClose();
@@ -1159,6 +1168,7 @@ async function exportXlsx(){
     for(let k=0;k<nRow;k++){
       const r = L.start + k;
       let cells = '';
+      const phCell = (k === nRow-1) ? 11 : 10;      // 照片列：白底；记录最后一行带下边框用于区分记录
       if(k === 0){
         cells += C(r,0,rec.date,3);
         cells += C(r,1,rec.item,3);
@@ -1166,13 +1176,13 @@ async function exportXlsx(){
         cells += C(r,3,Number(rec.qty)||0,4);
         cells += C(r,4,rec.unit||'',3);
         cells += C(r,5,rec.req,5);
-        cells += C(r,6,null,0);                       // 照片列：无边框空白，图片浮在上面
+        cells += C(r,6,null,phCell);                // 照片列：白底无网格，图片浮在上面
         cells += C(r,7, rec.judge==='ok'?'符合':'不符合', rec.judge==='ok'?7:8);
         cells += C(r,8,rec.inspector||'',3);
         cells += C(r,9,rec.remark||'',9);
       } else {
         [0,1,2,3,4,5,7,8,9].forEach(c=>{ cells += C(r,c,null,6); });
-        cells += C(r,6,null,0);                       // 照片列同样无边框
+        cells += C(r,6,null,phCell);
       }
       let h;
       const imgH = (L.ph && L.ph[k]) ? L.ph[k].h : 0;
@@ -1250,12 +1260,13 @@ async function exportXlsx(){
 <font><b/><sz val="10"/><color rgb="FFD0402F"/><name val="微软雅黑"/></font>
 <font><sz val="9"/><color rgb="FF333333"/><name val="微软雅黑"/></font>
 </fonts>
-<fills count="3">
+<fills count="4">
 <fill><patternFill patternType="none"/></fill>
 <fill><patternFill patternType="gray125"/></fill>
 <fill><patternFill patternType="solid"><fgColor rgb="FF2E75B6"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/><bgColor indexed="64"/></patternFill></fill>
 </fills>
-<borders count="2">
+<borders count="3">
 <border><left/><right/><top/><bottom/><diagonal/></border>
 <border>
 <left style="thin"><color rgb="FFD0D7E2"/></left>
@@ -1263,9 +1274,10 @@ async function exportXlsx(){
 <top style="thin"><color rgb="FFD0D7E2"/></top>
 <bottom style="thin"><color rgb="FFD0D7E2"/></bottom>
 <diagonal/></border>
+<border><left/><right/><top/><bottom style="thin"><color rgb="FFD0D7E2"/></bottom><diagonal/></border>
 </borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="10">
+<cellXfs count="12">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
@@ -1276,6 +1288,8 @@ async function exportXlsx(){
 <xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/>
+<xf numFmtId="0" fontId="0" fillId="3" borderId="2" xfId="0" applyFill="1" applyBorder="1"/>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="常规" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
@@ -1285,7 +1299,7 @@ async function exportXlsx(){
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 <dimension ref="A1:J${lastRow}"/>
-<sheetViews><sheetView tabSelected="1" showGridLines="0" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
+<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="30"/>
 <cols>${colsXml}</cols>
 <sheetData>${sheetRows}</sheetData>
