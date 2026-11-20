@@ -186,7 +186,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-17</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-18</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -678,30 +678,42 @@ function camClose(){
   $('camModal').classList.remove('show');
 }
 $('camShot').addEventListener('click', ()=>{
-  const v=$('camVideo');
+  const v=$('camVideo'), st=$('camSlot');
   if(!v.videoWidth){ toast('相机未就绪，稍等一下再点'); return; }
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
 
-  /* 用“预览快照”的方向与比例拍照：所见即所得，陀螺仪瞬时跳变不影响 */
-  const ss = window.__shotState || { rot: effRot(), ratio: 3/4 };
-  const rot = ss.rot;
-  const fw=v.videoWidth, fh=v.videoHeight;
-  let srcV=v, sw=fw, sh=fh;
-  if(rot !== 0){
+  /* 拍照几何与预览严格同源：方向用此刻的 effRot()（与预览 CSS 完全同一个值），
+     取景框尺寸实时读取——不用任何缓存快照，杜绝“预览对、拍出错” */
+  const rot = effRot();
+  const rc = st.getBoundingClientRect();
+  const bw = Math.max(1, Math.round(rc.width));
+  const bh = Math.max(1, Math.round(rc.height));
+  const fw = v.videoWidth, fh = v.videoHeight;
+  const land = (rot===90 || rot===-90);
+  /* 照片比例 = 预览所见框的形状：横握时预览画面整体转置，照片应为 4:3 横形；
+     竖握 / 倒握 / 屏幕横屏时照片形状 = 取景框形状 */
+  const br = land ? bh/bw : bw/bh;
+
+  /* 方向关键分支：手机传感器成像时画面内容相对拍摄方向是正立的。
+     帧横形 + 横握 → 原始画面本来就正立，居中裁切后【原样导出，不再旋转】
+       （旧版在这里多转了一次 90°，导致横拍照片方向错乱）；
+     帧竖形 + 横握 → 系统按 UI 方向输出了躺倒帧，整帧旋转 rot 转正后再裁；
+     竖握 / 倒握 → 帧内容正立，按取景框比例居中裁切原样导出 */
+  let srcV = v, sw = fw, sh = fh;
+  if(land && !(fw > fh)){
     const tmp=document.createElement('canvas');
     tmp.width=fh; tmp.height=fw;                 // 旋转后宽高互换
     const tc=tmp.getContext('2d');
     tc.translate(tmp.width/2, tmp.height/2);
     tc.rotate(rot*Math.PI/180);
     tc.drawImage(v, -fw/2, -fh/2);
-    srcV=tmp; sw=tmp.width; sh=tmp.height;
+    srcV=tmp; sw=tmp.width; sh=tmp.height;       // canvas 用 width/height；video 必须用 videoWidth/Height
   }
-  const boxRatio = ss.ratio;
   let cw=sw, ch=sh, cx=0, cy=0;
-  if(sw/sh > boxRatio){                          // 画面更宽 → 裁掉左右
-    cw=Math.round(sh*boxRatio); cx=Math.round((sw-cw)/2);
+  if(sw/sh > br){                                // 画面更宽 → 裁掉左右
+    cw=Math.round(sh*br); cx=Math.round((sw-cw)/2);
   } else {                                       // 画面更高 → 裁掉上下
-    ch=Math.round(sw/boxRatio); cy=Math.round((sh-ch)/2);
+    ch=Math.round(sw/br); cy=Math.round((sh-ch)/2);
   }
   let ow=cw, oh=ch;
   const maxSide=1280;
@@ -712,10 +724,11 @@ $('camShot').addEventListener('click', ()=>{
   const cv=document.createElement('canvas');
   cv.width=ow; cv.height=oh;
   cv.getContext('2d').drawImage(srcV, cx, cy, cw, ch, 0, 0, ow, oh);
+  if(!ow || !oh){ toast('相机画面中断了，请重新拍照'); return; }
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
   renderPhotos(); camClose();
-  toast((ow>=oh?'已拍摄（横版'+(rot!==0?'·已转正':'')+'）':'已拍摄（竖版）') + '，反了点照片左上角↻');
+  toast((ow>=oh?'已拍摄（横版':'已拍摄（竖版')+' '+ow+'×'+oh+'）');
 });
 $('camAlbum').addEventListener('click', ()=>{ camClose(); $('fileInput').click(); });
 $('camSwitch').addEventListener('click', ()=>{
