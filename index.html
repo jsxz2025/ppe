@@ -186,7 +186,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-14</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-15</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -299,6 +299,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 <div class="viewer" id="viewer"><span class="close" id="vClose">×</span><img id="vImg" alt=""></div>
 <div class="campanel" id="camModal">
   <div class="camtop">
+    <button id="camAdj" class="camx" type="button" title="方向不对点这里">⟲ 转正</button>
     <span class="camtitle">拍照</span>
     <button id="camCancel" class="camx">✕ 关闭</button>
   </div>
@@ -547,6 +548,16 @@ let camStream=null, camFacing='environment';
    左横握（顶部朝左、快门在右手）→ 横版 4:3，画面自动转正；
    右横握、倒握同样自动处理。预览所见即所得，拍完还能用照片左上角 ↻ 微调 */
 let orientMode='port', captureRot=0;
+/* 各拍摄模式的转正微调：自动识别为主，方向不对点⟲按钮+90°（选择记忆在本机，分横/竖模式各自记忆） */
+let rotAdj = { land:0, port:0 };
+try{
+  const s = JSON.parse(localStorage.getItem('ppe_rotadj')||'{}');
+  if(s && typeof s.land==='number') rotAdj.land = s.land;
+  if(s && typeof s.port==='number') rotAdj.port = s.port;
+}catch(e){}
+function saveAdj(){ try{ localStorage.setItem('ppe_rotadj', JSON.stringify(rotAdj)); }catch(e){} }
+function normRot(r){ r = ((r%360)+360)%360; return r===0?0:(r===90?90:(r===180?180:-90)); }
+function effRot(){ return normRot(captureRot + rotAdj[orientMode]); }
 let oriGranted=false;
 function enableOrientation(){
   if(oriGranted) return;
@@ -589,10 +600,11 @@ function layoutSlot(){
   s.style.height=Math.round(h)+'px';
   /* 预览同步旋转：取景框里看到的方向 = 拍出来的方向（所见即所得） */
   const v=$('camVideo');
-  if(captureRot===90 || captureRot===-90){
+  const rot = effRot();
+  if(rot===90 || rot===-90){
     v.style.cssText = 'position:absolute;left:50%;top:50%;width:'+Math.round(h)+'px;height:'+Math.round(w)+
-      'px;transform:translate(-50%,-50%) rotate('+captureRot+'deg)';
-  } else if(captureRot===180){
+      'px;transform:translate(-50%,-50%) rotate('+rot+'deg)';
+  } else if(rot===180){
     v.style.cssText = 'position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%) rotate(180deg)';
   } else {
     v.style.cssText = '';
@@ -604,6 +616,7 @@ function camOpen(){
   const v=$('camVideo');
   orientMode = window.innerWidth > window.innerHeight ? 'land' : 'port';
   captureRot = 0;
+  $('camAdj').style.display='';
   enableOrientation();          // 请求重力方向权限（iOS 弹一次“允许访问动作与方向”，必须允许）
   $('camHint').textContent='正在启动相机…';
   $('camModal').classList.add('show');
@@ -622,6 +635,12 @@ function camOpen(){
     $('camInput').click();
   });
 }
+/* ⟲ 转正：自动识别的方向不对时，点一下预览转90°，所见即所得，选择记忆在本机 */
+$('camAdj').addEventListener('click', ()=>{
+  rotAdj[orientMode] = normRot(rotAdj[orientMode] + 90);
+  saveAdj(); layoutSlot();
+  toast('预览已转 90°——看到正了就拍，会记住这个方向');
+});
 /* 兼容老版 Safari 的前缀写法 */
 function getUserMedia(c){
   const nav=navigator;
@@ -641,7 +660,7 @@ $('camShot').addEventListener('click', ()=>{
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
 
   /* 横版模式按固定方向转正：先旋转整帧（与预览一致），再按取景框比例居中裁切，所见即所得 */
-  const rot = captureRot;   // 重力感应识别的握持方向（0/±90/180），预览所见即所得
+  const rot = effRot();   // 自动识别 + 手动微调，预览所见即所得
   const fw=v.videoWidth, fh=v.videoHeight;
   let srcV=v, sw=fw, sh=fh;
   if(rot !== 0){
