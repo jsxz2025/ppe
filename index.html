@@ -28,6 +28,8 @@ h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.5px}
 .card h2::before{content:"";width:3px;height:14px;background:var(--pri);border-radius:2px}
 
 label.fl{display:block;font-size:13px;color:var(--sub);margin:10px 0 5px}
+.mgrbtn{border:0;background:none;color:var(--pri);font-size:12.5px;font-weight:600;padding:2px 4px;font-family:inherit;cursor:pointer}
+.mgrbtn:active{opacity:.7}
 label.fl:first-of-type{margin-top:0}
 input,select,textarea{width:100%;border:1px solid var(--bd);border-radius:8px;padding:10px 12px;
   font-size:15px;font-family:inherit;color:var(--txt);background:#fff;outline:none;transition:.15s}
@@ -212,14 +214,24 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
   <!-- 录入 -->
   <div class="card">
     <h2>录入记录</h2>
-    <label class="fl">物品名称</label>
+    <label class="fl" style="display:flex;align-items:center;justify-content:space-between">物品名称
+      <button class="mgrbtn" id="btnMgr" type="button">⚙ 管理物品</button>
+    </label>
     <select id="item"><option value="">请选择物品…</option></select>
 
     <label class="fl">品牌型号</label>
     <input type="text" id="brand" placeholder="选择物品后自动带出，可修改">
 
-    <label class="fl">数量</label>
-    <input type="number" id="qty" min="1" step="1" placeholder="入库数量" inputmode="numeric">
+    <div class="row2">
+      <div>
+        <label class="fl">数量</label>
+        <input type="number" id="qty" min="1" step="1" placeholder="入库数量" inputmode="numeric">
+      </div>
+      <div>
+        <label class="fl">单位</label>
+        <input type="text" id="unit" placeholder="个 / 双 / 套…" autocomplete="off">
+      </div>
+    </div>
 
     <label class="fl" style="margin-top:14px">验收要求</label>
     <div class="reqbox empty" id="req">选择物品后自动显示验收要求</div>
@@ -248,7 +260,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
     <div class="tbwrap">
       <table id="tbl">
         <thead>
-          <tr><th>日期</th><th>物品</th><th>品牌</th><th>数量</th><th>判定</th><th>照片</th><th>备注</th><th></th></tr>
+          <tr><th>日期</th><th>物品</th><th>品牌</th><th>数量</th><th>单位</th><th>判定</th><th>照片</th><th>备注</th><th></th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -305,9 +317,35 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
 <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
 
+<!-- 物品管理 -->
+<div class="modal" id="mgr">
+  <div class="mbox" style="max-width:560px">
+    <h3>物品管理 <span id="mgrCnt" style="font-size:11.5px;color:#8d99a9;font-weight:400"></span></h3>
+    <div id="mgrList" style="max-height:36vh;overflow:auto;border:1px solid #dfe5ee;border-radius:10px;margin-bottom:12px"></div>
+    <button class="btn" id="mgrAdd" type="button" style="width:100%;margin-bottom:4px">＋ 新增物品</button>
+    <div id="mgrForm" style="display:none">
+      <label class="fl">物品名称</label>
+      <input id="itName" placeholder="如：防砸鞋">
+      <label class="fl">品牌型号</label>
+      <input id="itBrand" placeholder="如：赛夫">
+      <label class="fl">单位</label>
+      <input id="itUnit" placeholder="如：双 / 顶 / 套">
+      <label class="fl">验收要求</label>
+      <textarea id="itReq" style="font-family:inherit;font-size:13px;word-break:normal" placeholder="逐条编号填写：&#10;1.外观无破损、无污渍；&#10;2.标识齐全，在有效期内"></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn" id="mgrCancel" type="button" style="flex:1;padding:12px 16px">取消</button>
+        <button class="btn pri" id="mgrSave" type="button" style="flex:2;padding:12px 16px;margin-top:0">保存</button>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:12px">
+      <button class="btn" id="mgrClose" type="button" style="min-width:140px;padding:12px 16px">关闭</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============ 数据 ============ */
-const ITEMS = [{"name": "安全帽", "brand": "彪王", "req": "1.外壳无裂纹、磕碰凹坑、变形、毛刺；\n2.帽衬、帽带、下颏带完整无断裂，卡扣可调；\n3.帽壳标识齐全（合格证、生产日期、执行标准），在有效期内；\n4.无老化发脆、油污霉变"}, {"name": "防尘薄口罩(9501+/9502+)", "brand": "3M", "req": "1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹不变形、可弯折定型；无纺布均匀、无破洞稀网；\n4.手感柔软不掉屑；外包装标注产品名称、生产日期、保质期、生产厂家、合格证"}, {"name": "半面罩(AN3002)", "brand": "生宝", "req": "1.面罩主体无裂纹、无破损、不变形、无毛刺、无异味；\n2.橡胶/硅胶材质柔软有弹性，不发硬、不发粘、不脆裂；\n3.头带弹性完好，卡扣可正常调节"}, {"name": "滤棉DL-R", "brand": "生宝", "req": "1.滤棉表面无破损、无变形、无污渍霉点、无掉屑；\n2.包装完好、密封无破损、无受潮；\n3.过滤层与支撑层贴合牢固，不分层；边缘封边牢固不脱边不散边"}, {"name": "半面式防毒面具6200", "brand": "3M", "req": "1.面罩主体无裂纹、破损、变形、毛刺、异味；\n2.橡胶/硅胶柔软有弹性，不发硬、不发粘、不脆裂；\n3.头带弹性好、不断裂、不脱胶，调节扣完好"}, {"name": "滤盒(6001)", "brand": "3M", "req": "1.外观无破损、无受潮、无松动；\n2.防护类型标识清晰（防有机蒸气）；\n3.在有效期内，无过期、无外壳老化开裂"}, {"name": "滤棉(5N11)", "brand": "3M", "req": "1.表面无破损、无变形、无霉斑、无掉毛、无污渍；\n2.滤料均匀、无破洞、无压塌、不分层；\n3.边缘封边牢固，不散边、不脱层"}, {"name": "滤棉盖(501)", "brand": "3M", "req": "1.无裂纹、破损、缺角、毛刺、变形；\n2.材质坚硬有韧性，不发软、不脆、一捏不裂；\n3.表面无污渍、无发黄、无老化"}, {"name": "活性炭口罩", "brand": "呼亨", "req": "1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹可正常定型，无纺布均匀无破洞稀网；\n4.外包装标识完整，合格证齐全"}, {"name": "M97医用外科口罩(无菌级)", "brand": "保为康", "req": "1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹不变形、可弯折定型；无纺布均匀无破洞稀网；\n4.手感柔软；包装标注产品名称、生产日期、保质期、厂家、合格证、无菌标识"}, {"name": "一次性防护服(K1200)", "brand": "坤泽尔", "req": "1.整体无破损、无破洞、无撕裂、无污渍、无霉点；\n2.缝线/热合处无开缝、无脱胶、无针孔漏点；\n3.面料均匀、无薄块、无砂眼、无发黄老化；\n4.连体/分体结构与订单一致，连帽、袖口、脚踝、腰部结构完整；\n5.弹性收口松紧正常，不松脱、不断裂；\n6.面罩开口、手套口、鞋套口（如有）完好无缺"}, {"name": "涂装防护服", "brand": "牧琅", "req": "1.整体无破损、无破洞、无撕裂、无污渍、无霉点；\n2.缝线/热合处无开缝、无脱胶、无针孔漏点；\n3.面料均匀、无薄块、无砂眼、无发黄老化；\n4.连体/分体与订单一致，连帽、袖口、腰部结构完整；\n5.弹性收口松紧正常，不松脱、不断裂；\n6.面罩口、手套口、鞋套口（如有）完好无缺"}, {"name": "防冲击护目镜/平光镜", "brand": "畅鸿", "req": "1.镜片无划痕、无气泡、无条纹、无裂纹、无杂质、无崩边；\n2.镜架无裂纹、无毛刺、无变形、无缺件；\n3.整体无污渍、无发霉、无老化发黄；\n4.镜腿弹性正常、不断裂、松紧适中；\n5.鼻托贴合不滑落、不压鼻；螺丝/卡扣牢固不松动不掉件"}, {"name": "电焊面罩", "brand": "牛盾", "req": "1.面罩壳体无裂纹、破损、变形、气泡、明显毛刺；\n2.面罩内部无尖锐边角、无松动零件；\n3.面罩镜片卡槽完好，可正常安装镜片"}, {"name": "白玻璃镜片(面罩)", "brand": "牛盾", "req": "1.表面平整、无裂纹、无崩边、无明显划痕、无气泡；\n2.尺寸标准，能正常装入面罩镜框"}, {"name": "黑玻璃镜片(面罩)", "brand": "牛盾", "req": "1.表面平整、无裂纹、无崩边、无明显划痕、无气泡；遮光号标识清晰；\n2.尺寸标准，能正常装入面罩镜框"}, {"name": "线手套", "brand": "坤利", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "线胶手套", "brand": "登升保友", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "布手套", "brand": "坤利", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "花皮手套", "brand": "东瑞通达", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "涂胶手套(好)", "brand": "三碟", "req": "1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"}, {"name": "涂胶手套(普通)", "brand": "南洋", "req": "1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"}, {"name": "防割手套(下料专供)", "brand": "胜丽", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "焊工手套", "brand": "祥硕", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "耐高温手套", "brand": "恒辉", "req": "1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"}, {"name": "一次性丁腈手套", "brand": "英科", "req": "1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"}, {"name": "劳保防水手套加长袖", "brand": "慎固", "req": "1.无脱层、无裂纹、无破洞、无划痕、无霉点、无刺鼻异味；\n2.材质柔韧不脆，揉搓不开裂"}, {"name": "劳保鞋78010(防砸)高筒雨靴", "brand": "祺宝", "req": "1.鞋面/靴体无破损、开裂、变形、发霉；钢包头防护结构无外露变形；\n2.鞋底纹路完整，无严重开胶；鞋帮缝线完好；标识齐全"}, {"name": "耳塞", "brand": "君御", "req": "1.发泡耳塞回弹均匀，不发粘、不粉化；揉搓后回弹速度正常；\n2.材质柔韧不脆，拉扯无裂纹、无刺鼻异味"}, {"name": "阻燃焊工服倒褂", "brand": "畅通—三五七", "req": "1.材质为牛皮/阻燃皮，厚度均匀、坚韧耐磨；\n2.无破损、裂皮、刀伤、孔洞，无严重烫痕伤损脆化、腐烂；\n3.缝线为耐高温线，针脚均匀无跳线；拼接处牢固不开裂；\n4.边缘处理规整，不划手"}, {"name": "焊工围裙", "brand": "胜丽", "req": "1.材质为牛皮/阻燃皮，厚度均匀、坚韧耐磨；\n2.无破损、裂皮、刀伤、孔洞，无严重烫痕伤损脆化、腐烂；\n3.缝线为耐高温线，针脚均匀无跳线；拼接处牢固不开裂；\n4.边缘处理规整，不划手"}, {"name": "PU围裙", "brand": "畅通", "req": "1.PU面料无破损、无龟裂、无划痕、无霉斑；\n2.表面光滑无污渍、无毛发；材质柔软不发硬、不发粘、不脆裂"}, {"name": "套袖", "brand": "谋福", "req": "1.无污渍、霉点、无刺鼻异味；\n2.柔韧不脆，揉搓不开裂；缝线完整无开线"}, {"name": "夏季工作服(上衣)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "夏季工作服(下衣/袖)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "春秋季工作服(上衣)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "春秋季工作服(下衣)", "brand": "古亨", "req": "1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"}, {"name": "棉衣", "brand": "古亨", "req": "1.外层面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线，填充物无外露跑棉；\n3.拉链/纽扣完好，尺码标识齐全"}, {"name": "安全带", "brand": "平安安泰", "req": "1.织带无烧伤、无撕裂、无污渍、无霉烂、无老化；\n2.缝线针脚均匀，无断针、无线头；\n3.金属配件无裂纹、无变形；腰带、肩带、腿带、护腰齐全；\n4.卡扣安全可靠，自锁闭锁灵活闭合可靠，不自动弹开；标识及有效期清晰"}, {"name": "雨衣", "brand": "中倚", "req": "1.防水面料无破洞、撕裂、划痕、发白老化；\n2.缝线压胶完好无开缝；帽檐、袖口松紧完好；\n3.无刺鼻塑料异味"}, {"name": "绝缘手套", "brand": "胜丽", "req": "1.表面无裂纹、破洞、粘损、老化发脆；\n2.无油污、发霉、粘连；\n3.产品电压等级标识、合格证、检验日期清晰，在检验有效期内"}];
+const BASE_ITEMS = [{"name":"安全帽","brand":"彪王","unit":"顶","req":"1.外壳无裂纹、磕碰凹坑、变形、毛刺；\n2.帽衬、帽带、下颏带完整无断裂，卡扣可调；\n3.帽壳标识齐全（合格证、生产日期、执行标准），在有效期内；\n4.无老化发脆、油污霉变"},{"name":"防尘薄口罩(9501+/9502+)","brand":"3M","unit":"个","req":"1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹不变形、可弯折定型；无纺布均匀、无破洞稀网；\n4.手感柔软不掉屑；外包装标注产品名称、生产日期、保质期、生产厂家、合格证"},{"name":"半面罩(AN3002)","brand":"生宝","unit":"个","req":"1.面罩主体无裂纹、无破损、不变形、无毛刺、无异味；\n2.橡胶/硅胶材质柔软有弹性，不发硬、不发粘、不脆裂；\n3.头带弹性完好，卡扣可正常调节"},{"name":"滤棉DL-R","brand":"生宝","unit":"片","req":"1.滤棉表面无破损、无变形、无污渍霉点、无掉屑；\n2.包装完好、密封无破损、无受潮；\n3.过滤层与支撑层贴合牢固，不分层；边缘封边牢固不脱边不散边"},{"name":"半面式防毒面具6200","brand":"3M","unit":"个","req":"1.面罩主体无裂纹、破损、变形、毛刺、异味；\n2.橡胶/硅胶柔软有弹性，不发硬、不发粘、不脆裂；\n3.头带弹性好、不断裂、不脱胶，调节扣完好"},{"name":"滤盒(6001)","brand":"3M","unit":"个","req":"1.外观无破损、无受潮、无松动；\n2.防护类型标识清晰（防有机蒸气）；\n3.在有效期内，无过期、无外壳老化开裂"},{"name":"滤棉(5N11)","brand":"3M","unit":"个","req":"1.表面无破损、无变形、无霉斑、无掉毛、无污渍；\n2.滤料均匀、无破洞、无压塌、不分层；\n3.边缘封边牢固，不散边、不脱层"},{"name":"滤棉盖(501)","brand":"3M","unit":"个","req":"1.无裂纹、破损、缺角、毛刺、变形；\n2.材质坚硬有韧性，不发软、不脆、一捏不裂；\n3.表面无污渍、无发黄、无老化"},{"name":"活性炭口罩","brand":"呼亨","unit":"个","req":"1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹可正常定型，无纺布均匀无破洞稀网；\n4.外包装标识完整，合格证齐全"},{"name":"M97医用外科口罩(无菌级)","brand":"保为康","unit":"个","req":"1.口罩表面无污渍、无破损、无霉点、无异味；\n2.耳带/绑带不断裂、不松脱、缝合牢固；\n3.鼻夹不变形、可弯折定型；无纺布均匀无破洞稀网；\n4.手感柔软；包装标注产品名称、生产日期、保质期、厂家、合格证、无菌标识"},{"name":"一次性防护服(K1200)","brand":"坤泽尔","unit":"件","req":"1.整体无破损、无破洞、无撕裂、无污渍、无霉点；\n2.缝线/热合处无开缝、无脱胶、无针孔漏点；\n3.面料均匀、无薄块、无砂眼、无发黄老化；\n4.连体/分体结构与订单一致，连帽、袖口、脚踝、腰部结构完整；\n5.弹性收口松紧正常，不松脱、不断裂；\n6.面罩开口、手套口、鞋套口（如有）完好无缺"},{"name":"涂装防护服","brand":"牧琅","unit":"件","req":"1.整体无破损、无破洞、无撕裂、无污渍、无霉点；\n2.缝线/热合处无开缝、无脱胶、无针孔漏点；\n3.面料均匀、无薄块、无砂眼、无发黄老化；\n4.连体/分体与订单一致，连帽、袖口、腰部结构完整；\n5.弹性收口松紧正常，不松脱、不断裂；\n6.面罩口、手套口、鞋套口（如有）完好无缺"},{"name":"防冲击护目镜/平光镜","brand":"畅鸿","unit":"个","req":"1.镜片无划痕、无气泡、无条纹、无裂纹、无杂质、无崩边；\n2.镜架无裂纹、无毛刺、无变形、无缺件；\n3.整体无污渍、无发霉、无老化发黄；\n4.镜腿弹性正常、不断裂、松紧适中；\n5.鼻托贴合不滑落、不压鼻；螺丝/卡扣牢固不松动不掉件"},{"name":"电焊面罩","brand":"牛盾","unit":"个","req":"1.面罩壳体无裂纹、破损、变形、气泡、明显毛刺；\n2.面罩内部无尖锐边角、无松动零件；\n3.面罩镜片卡槽完好，可正常安装镜片"},{"name":"白玻璃镜片(面罩)","brand":"牛盾","unit":"个","req":"1.表面平整、无裂纹、无崩边、无明显划痕、无气泡；\n2.尺寸标准，能正常装入面罩镜框"},{"name":"黑玻璃镜片(面罩)","brand":"牛盾","unit":"个","req":"1.表面平整、无裂纹、无崩边、无明显划痕、无气泡；遮光号标识清晰；\n2.尺寸标准，能正常装入面罩镜框"},{"name":"线手套","brand":"坤利","unit":"双","req":"1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"},{"name":"线胶手套","brand":"登升保友","unit":"双","req":"1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"},{"name":"布手套","brand":"坤利","unit":"双","req":"1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"},{"name":"花皮手套","brand":"东瑞通达","unit":"双","req":"1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"},{"name":"涂胶手套(好)","brand":"三碟","unit":"双","req":"1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"},{"name":"涂胶手套(普通)","brand":"南洋","unit":"双","req":"1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"},{"name":"防割手套(下料专供)","brand":"胜丽","unit":"双","req":"1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"},{"name":"焊工手套","brand":"祥硕","unit":"双","req":"1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"},{"name":"耐高温手套","brand":"恒辉","unit":"双","req":"1.无破洞、跳线、断纱、稀档、污渍油渍、霉点；\n2.拉伸后松紧适中，不勒手不过松；\n3.袖口锁边牢固，不脱线；指尖、掌心部位无薄纱；整批手感厚度基本一致"},{"name":"一次性丁腈手套","brand":"英科","unit":"双","req":"1.胶层均匀、无气泡、无脱胶、无裂纹、无破洞；\n2.无油污、霉斑、发黄、发粘、发硬"},{"name":"劳保防水手套加长袖","brand":"慎固","unit":"双","req":"1.无脱层、无裂纹、无破洞、无划痕、无霉点、无刺鼻异味；\n2.材质柔韧不脆，揉搓不开裂"},{"name":"劳保鞋78010(防砸)","brand":"祺宝","unit":"双","req":"1.鞋面/靴体无破损、开裂、变形、发霉；钢包头防护结构无外露变形；\n2.鞋底纹路完整，无严重开胶；鞋帮缝线完好；标识齐全"},{"name":"耳塞","brand":"君御","unit":"个","req":"1.发泡耳塞回弹均匀，不发粘、不粉化；揉搓后回弹速度正常；\n2.材质柔韧不脆，拉扯无裂纹、无刺鼻异味"},{"name":"阻燃焊工服倒褂","brand":"畅通—三五七","unit":"件","req":"1.材质为牛皮/阻燃皮，厚度均匀、坚韧耐磨；\n2.无破损、裂皮、刀伤、孔洞，无严重烫痕伤损脆化、腐烂；\n3.缝线为耐高温线，针脚均匀无跳线；拼接处牢固不开裂；\n4.边缘处理规整，不划手"},{"name":"焊工围裙","brand":"胜丽","unit":"件","req":"1.材质为牛皮/阻燃皮，厚度均匀、坚韧耐磨；\n2.无破损、裂皮、刀伤、孔洞，无严重烫痕伤损脆化、腐烂；\n3.缝线为耐高温线，针脚均匀无跳线；拼接处牢固不开裂；\n4.边缘处理规整，不划手"},{"name":"PU围裙","brand":"畅通","unit":"件","req":"1.PU面料无破损、无龟裂、无划痕、无霉斑；\n2.表面光滑无污渍、无毛发；材质柔软不发硬、不发粘、不脆裂"},{"name":"套袖","brand":"谋福","unit":"双","req":"1.无污渍、霉点、无刺鼻异味；\n2.柔韧不脆，揉搓不开裂；缝线完整无开线"},{"name":"夏季工作服(上衣)","brand":"古亨","unit":"件","req":"1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"},{"name":"夏季工作服(下衣/袖)","brand":"古亨","unit":"件","req":"1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"},{"name":"春秋季工作服(上衣)","brand":"古亨","unit":"件","req":"1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"},{"name":"春秋季工作服(下衣)","brand":"古亨","unit":"件","req":"1.面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线、无线头；尺码标识清晰；\n3.面料无大面积色差，五金扣完好"},{"name":"棉衣","brand":"古亨","unit":"件","req":"1.外层面料无破洞、撕裂、污渍、霉斑；\n2.缝线均匀、无跳线，填充物无外露跑棉；\n3.拉链/纽扣完好，尺码标识齐全"},{"name":"安全带","brand":"平安安泰","unit":"个","req":"1.织带无烧伤、无撕裂、无污渍、无霉烂、无老化；\n2.缝线针脚均匀，无断针、无线头；\n3.金属配件无裂纹、无变形；腰带、肩带、腿带、护腰齐全；\n4.卡扣安全可靠，自锁闭锁灵活闭合可靠，不自动弹开；标识及有效期清晰"},{"name":"雨衣","brand":"中倚","unit":"件","req":"1.防水面料无破洞、撕裂、划痕、发白老化；\n2.缝线压胶完好无开缝；帽檐、袖口松紧完好；\n3.无刺鼻塑料异味"},{"name":"高筒雨靴","brand":"胜丽","unit":"双","req":"1.鞋面/靴体无破损、开裂、变形、发霉；钢包头防护结构无外露变形；\n2.鞋底纹路完整，无严重开胶；鞋帮缝线完好；标识齐全"},{"name":"绝缘手套","brand":"胜丽","unit":"双","req":"1.表面无裂纹、破洞、粘损、老化发脆；\n2.无油污、发霉、粘连；\n3.产品电压等级标识、合格证、检验日期清晰，在检验有效期内"}];
 
 /* ============ 存储层：IndexedDB（大容量）+ localStorage 兜底 ============ */
 const KEY = 'ppe_inspect_v1';
@@ -316,6 +354,26 @@ let photoBuf = [];      // 当前待保存照片 [{id,data}]
 let judge = null;
 let modalCb = null;
 let useIDB = false;
+
+/* ============ 物品配置：内置 BASE_ITEMS + 本机自定义（新增/修改/删除） ============ */
+const IKEY = 'ppe_items_v1';
+let customItems = [], itemOverrides = {}, itemDeleted = [];
+let ALLITEMS = [];
+try{
+  const cfg = JSON.parse(localStorage.getItem(IKEY)||'{}');
+  if(Array.isArray(cfg.custom)) customItems = cfg.custom.filter(x=>x && x.name);
+  if(cfg.overrides && typeof cfg.overrides==='object') itemOverrides = cfg.overrides;
+  if(Array.isArray(cfg.deleted)) itemDeleted = cfg.deleted;
+}catch(e){}
+function saveItemCfg(){
+  try{ localStorage.setItem(IKEY, JSON.stringify({custom:customItems, overrides:itemOverrides, deleted:itemDeleted})); }catch(e){}
+}
+function rebuildItems(){
+  ALLITEMS = BASE_ITEMS
+    .filter(it=>itemDeleted.indexOf(it.name)<0)
+    .map(it=> itemOverrides[it.name] ? Object.assign({}, it, itemOverrides[it.name]) : it)
+    .concat(customItems);
+}
 
 function idbOpen(){
   return new Promise((res,rej)=>{
@@ -410,12 +468,25 @@ function esc(s){
 
 /* ============ 初始化 ============ */
 function initItems(){
+  rebuildItems();
   const sel = $('item');
-  ITEMS.forEach((it,i)=>{
+  ALLITEMS.forEach((it,i)=>{
     const o = document.createElement('option');
     o.value = i; o.textContent = it.name + '  ·  ' + it.brand;
     sel.appendChild(o);
   });
+}
+/* 物品增删改后重建下拉，并尽量保留当前选中项 */
+function refreshItemSel(){
+  const cur = $('item').value;
+  const sel = $('item');
+  sel.innerHTML = '<option value="">请选择物品…</option>';
+  ALLITEMS.forEach((it,i)=>{
+    const o = document.createElement('option');
+    o.value = i; o.textContent = it.name + '  ·  ' + it.brand;
+    sel.appendChild(o);
+  });
+  if(cur !== '' && +cur < ALLITEMS.length) sel.value = cur;
 }
 function initDate(){
   $('date').value = todayStr();
@@ -430,8 +501,9 @@ $('item').addEventListener('change', e=>{
     $('req').classList.add('empty');
     return;
   }
-  const it = ITEMS[+i];
+  const it = ALLITEMS[+i];
   $('brand').value = it.brand;
+  $('unit').value = it.unit || '';
   $('req').textContent = it.req;
   $('req').classList.remove('empty');
 });
@@ -668,7 +740,7 @@ $('save').addEventListener('click', ()=>{
   if(!qty || +qty <= 0){ toast('请填写数量'); $('qty').focus(); return; }
   if(!judge){ toast('请选择「符合」或「不符合」'); return; }
 
-  const it = ITEMS[+itemIdx];
+  const it = ALLITEMS[+itemIdx];
   const rec = {
     id: 'r'+Date.now()+Math.random().toString(36).slice(2,6),
     date: $('date').value || todayStr(),
@@ -676,6 +748,7 @@ $('save').addEventListener('click', ()=>{
     item: it.name,
     brand: $('brand').value.trim() || it.brand,
     qty: +qty,
+    unit: $('unit').value.trim(),
     req: it.req,
     judge: judge,
     photos: photoBuf.map(p=>({d:p.data, w:p.w, h:p.h})),
@@ -710,6 +783,7 @@ function resetForm(){
   $('req').textContent = '选择物品后自动显示验收要求';
   $('req').classList.add('empty');
   $('qty').value = '';
+  $('unit').value = '';
   $('remark').value = '';
   photoBuf = [];
   renderPhotos();
@@ -735,7 +809,8 @@ function renderTable(){
       '<td style="white-space:nowrap">'+esc(r.date)+'</td>'+
       '<td>'+esc(r.item)+'</td>'+
       '<td>'+esc(r.brand)+'</td>'+
-      '<td style="text-align:right">'+esc(r.qty)+'</td>'+
+      '<td style="text-align:center">'+esc(r.qty)+'</td>'+
+      '<td style="text-align:center">'+(r.unit ? esc(r.unit) : '<span style="color:#c8cfda">—</span>')+'</td>'+
       '<td><span class="tag '+(r.judge==='ok'?'ok':'no')+'">'+(r.judge==='ok'?'符合':'不符合')+'</span></td>'+
       '<td>'+(r.photos.length
         ? '<img class="thumb" src="'+phSrc(r.photos[0])+'" alt=""><span style="color:#8d99a9;font-size:11px"> '+r.photos.length+'</span>'
@@ -780,7 +855,7 @@ $('mOk').addEventListener('click', ()=>{
 function packData(){
   // 精简结构 + 压缩照片到 640px 再打包
   return records.map(r=>({
-    d:r.date, i:r.item, b:r.brand, q:r.qty, j:r.judge,
+    d:r.date, i:r.item, b:r.brand, q:r.qty, n:r.unit, j:r.judge,
     p:r.photos, m:r.remark, u:r.inspector, t:r.ts
   }));
 }
@@ -796,7 +871,7 @@ $('syncCode').addEventListener('click', async ()=>{
       const s = await shrinkDataUrl(phSrc(p), 640, 0.55);
       if(s && s.d) ps.push(s);
     }
-    slim.push({d:r.date,i:r.item,b:r.brand,q:r.qty,j:r.judge,p:ps,m:r.remark,u:r.inspector,t:r.ts});
+    slim.push({d:r.date,i:r.item,b:r.brand,q:r.qty,n:r.unit,j:r.judge,p:ps,m:r.remark,u:r.inspector,t:r.ts});
   }
   let json = JSON.stringify(slim);
   let b64 = btoa(unescape(encodeURIComponent(json)));
@@ -847,8 +922,8 @@ $('impCode').addEventListener('click', ()=>{
       const add = arr.map((r,k)=>({
         id:'r'+now+'-'+k+Math.random().toString(36).slice(2,6),
         date:r.d||todayStr(), inspector:r.u||'',
-        item:r.i, brand:r.b, qty:r.q,
-        req:(ITEMS.find(x=>x.name===r.i)||{}).req||'',
+        item:r.i, brand:r.b, qty:r.q, unit:r.n||'',
+        req:(ALLITEMS.find(x=>x.name===r.i)||{}).req||'',
         judge:r.j, photos:normPhotos(r.p), remark:r.m||'', ts:r.t||now
       }));
       records = add.concat(records);
@@ -857,6 +932,100 @@ $('impCode').addEventListener('click', ()=>{
       toast('同步码格式不正确');
     }
   });
+});
+
+/* ============ 物品管理 ============ */
+let mgrEditIdx = -1;   // -1=新增，否则为 ALLITEMS 下标
+function mgrOpen(){
+  $('mgr').classList.add('show');
+  mgrHideForm();
+  mgrRenderList();
+  try{ document.querySelector('#mgr .mbox').scrollTop = 0; }catch(e){}
+}
+/* 列表视图：列表 + 新增 + 关闭 */
+function mgrHideForm(){
+  $('mgrForm').style.display='none';
+  $('mgrList').style.display='block';
+  $('mgrAdd').style.display='block';
+  $('mgrClose').style.display='';
+  mgrEditIdx = -1;
+}
+/* 表单视图：只显示表单，隐藏列表和关闭，按钮不挤压 */
+function mgrShowForm(){
+  $('mgrList').style.display='none';
+  $('mgrAdd').style.display='none';
+  $('mgrClose').style.display='none';
+  $('mgrForm').style.display='block';
+  setTimeout(()=>{ try{ $('itName').scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){} }, 80);
+}
+function mgrRenderList(){
+  const box = $('mgrList');
+  $('mgrCnt').textContent = '共 ' + ALLITEMS.length + ' 种 · 修改保存在本机';
+  if(!ALLITEMS.length){ box.innerHTML = '<div style="padding:14px;text-align:center;color:#8d99a9;font-size:13px">还没有物品，点下面新增</div>'; return; }
+  box.innerHTML = ALLITEMS.map((it,i)=>{
+    const isCustom = customItems.some(x=>x.name===it.name);
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #eef1f6'+(i===ALLITEMS.length-1?';border-bottom:0':'')+'">'
+    +'<div style="flex:1;min-width:0">'
+    +'<div style="font-size:13.5px;color:#1c2733;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(it.name)
+    +(isCustom ? ' <span style="background:#eef4ff;color:#2e75b6;font-size:10px;padding:1px 6px;border-radius:8px;vertical-align:1px">自定义</span>' : '')
+    +'</div>'
+    +'<div style="font-size:11.5px;color:#8d99a9">'+esc(it.brand||'无品牌')+(it.unit?' · 单位:'+esc(it.unit):'')+'</div></div>'
+    +'<button class="btn sm" data-edit="'+i+'" type="button" style="padding:3px 10px;font-size:12px">编辑</button>'
+    +'<button class="btn sm danger" data-del="'+i+'" type="button" style="padding:3px 10px;font-size:12px">删</button>'
+    +'</div>';
+  }).join('');
+  box.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click', ()=>mgrEdit(+b.dataset.edit)));
+  box.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ()=>{
+    const it = ALLITEMS[+b.dataset.del];
+    if(!confirm('删除物品「'+it.name+'」？已录入的记录不受影响。')) return;
+    const ci = customItems.findIndex(x=>x.name===it.name);
+    if(ci >= 0){ customItems.splice(ci,1); }
+    else { itemDeleted.push(it.name); delete itemOverrides[it.name]; }
+    saveItemCfg(); rebuildItems(); refreshItemSel(); mgrRenderList();
+    toast('已删除');
+  }));
+}
+function mgrEdit(i){
+  mgrEditIdx = i;
+  const it = ALLITEMS[i];
+  $('itName').value = it.name||'';
+  $('itBrand').value = it.brand||'';
+  $('itUnit').value = it.unit||'';
+  $('itReq').value = it.req||'';
+  mgrShowForm();
+}
+$('btnMgr').addEventListener('click', mgrOpen);
+$('mgrClose').addEventListener('click', ()=>{ $('mgr').classList.remove('show'); mgrHideForm(); });
+$('mgr').addEventListener('click', e=>{ if(e.target.id==='mgr'){ $('mgr').classList.remove('show'); mgrHideForm(); } });
+$('mgrAdd').addEventListener('click', ()=>{
+  mgrHideForm();
+  ['itName','itBrand','itUnit','itReq'].forEach(id=>{ $(id).value=''; });
+  mgrEditIdx = -1;
+  mgrShowForm();
+  setTimeout(()=>{ $('itName').focus(); }, 120);
+});
+$('mgrCancel').addEventListener('click', mgrHideForm);
+$('mgrSave').addEventListener('click', ()=>{
+  const name = $('itName').value.trim();
+  const brand = $('itBrand').value.trim();
+  const unit = $('itUnit').value.trim();
+  const req = $('itReq').value.trim();
+  if(!name){ toast('请填写物品名称'); $('itName').focus(); return; }
+  if(!req){ toast('请填写验收要求'); $('itReq').focus(); return; }
+  const dup = ALLITEMS.some((it,i)=> it.name===name && i!==mgrEditIdx);
+  if(dup){ toast('已存在同名物品，请换个名称'); return; }
+  const wasNew = mgrEditIdx < 0;
+  if(wasNew){
+    customItems.push({name, brand, unit, req});
+  } else {
+    const old = ALLITEMS[mgrEditIdx];
+    const ci = customItems.findIndex(x=>x.name===old.name);
+    if(ci >= 0){ customItems[ci] = {name, brand, unit, req}; }
+    else { itemOverrides[old.name] = {name, brand, unit, req}; }
+  }
+  saveItemCfg();
+  rebuildItems(); refreshItemSel(); mgrHideForm(); mgrRenderList();
+  toast(wasNew ? '已新增物品' : '已保存修改');
 });
 
 /* ============ 清空 ============ */
@@ -901,8 +1070,8 @@ async function exportXlsx(){
   const list = [...records].sort((a,b)=>a.ts-b.ts);
   if(!list.length){ toast('没有可导出的记录'); return; }
 
-  /* 列：0日期 1物品 2品牌 3数量 4验收要求 5照片 6判定 7验收人 8备注 */
-  const colW = [12, 22, 14, 7, 58, 26, 8, 10, 20];
+  /* 列：0日期 1物品 2品牌 3数量 4单位 5验收要求 6照片 7判定 8验收人 9备注 */
+  const colW = [12, 22, 14, 7, 6, 58, 26, 8, 10, 20];
 
   /* 共享字符串 */
   const sst=[], sstIdx={};
@@ -955,7 +1124,7 @@ async function exportXlsx(){
   let sheetRows='';
 
   /* 表头 */
-  const hdr = ['验收日期','物品名称','品牌型号','数量','验收要求','照片','判定','验收人','备注'];
+  const hdr = ['验收日期','物品名称','品牌型号','数量','单位','验收要求','照片','判定','验收人','备注'];
   sheetRows += '<row r="1" ht="30" customHeight="1">' +
     hdr.map((t,i)=>C(0,i,t,1)).join('') + '</row>';
 
@@ -971,13 +1140,15 @@ async function exportXlsx(){
         cells += C(r,1,rec.item,3);
         cells += C(r,2,rec.brand,3);
         cells += C(r,3,Number(rec.qty)||0,4);
-        cells += C(r,4,rec.req,5);
-        cells += C(r,5,null,6);                       // 照片列留空给图片
-        cells += C(r,6, rec.judge==='ok'?'符合':'不符合', rec.judge==='ok'?7:8);
-        cells += C(r,7,rec.inspector||'',3);
-        cells += C(r,8,rec.remark||'',9);
+        cells += C(r,4,rec.unit||'',3);
+        cells += C(r,5,rec.req,5);
+        cells += C(r,6,null,0);                       // 照片列：无边框空白，图片浮在上面
+        cells += C(r,7, rec.judge==='ok'?'符合':'不符合', rec.judge==='ok'?7:8);
+        cells += C(r,8,rec.inspector||'',3);
+        cells += C(r,9,rec.remark||'',9);
       } else {
-        [0,1,2,3,4,5,6,7,8].forEach(c=>{ cells += C(r,c,null,6); });
+        [0,1,2,3,4,5,7,8,9].forEach(c=>{ cells += C(r,c,null,6); });
+        cells += C(r,6,null,0);                       // 照片列同样无边框
       }
       let h;
       const imgH = (L.ph && L.ph[k]) ? L.ph[k].h : 0;
@@ -998,7 +1169,7 @@ async function exportXlsx(){
   list.forEach((rec,ri)=>{
     const L=layout[ri];
     if(L.span>1){
-      ['A','B','C','D','E','G','H','I'].forEach(al=>{
+      ['A','B','C','D','E','F','H','I','J'].forEach(al=>{
         merges.push(al+(L.start+1)+':'+al+(L.start+L.span));
       });
     }
@@ -1007,12 +1178,12 @@ async function exportXlsx(){
     ? '<mergeCells count="'+merges.length+'">'+merges.map(m=>'<mergeCell ref="'+m+'"/>').join('')+'</mergeCells>'
     : '';
 
-  /* 图片锚点：照片全部贴在照片列（索引5），竖排 1 行 1 张，按各自原始比例 */
+  /* 图片锚点：照片全部贴在照片列（索引6），竖排 1 行 1 张，按各自原始比例 */
   const imgs=[];
   list.forEach((rec,ri)=>{
     const L=layout[ri];
     (L.ph||[]).forEach((p,pi)=>{
-      imgs.push({row:L.start + pi, col:5, data:p.data, cx:p.w*EMU, cy:p.h*EMU});
+      imgs.push({row:L.start + pi, col:6, data:p.data, cx:p.w*EMU, cy:p.h*EMU});
     });
   });
 
@@ -1075,7 +1246,7 @@ async function exportXlsx(){
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
-<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="right" vertical="center"/></xf>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="4" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1"/>
 <xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
@@ -1273,7 +1444,12 @@ renderPhotos();
 /* 调试/自动化入口 */
 window.__app = {
   setRecords: r => { records = r; renderTable(); },
-  exportXlsx: () => exportXlsx()
+  exportXlsx: () => exportXlsx(),
+  getRecords: () => records,
+  packData: () => packData(),
+  getItems: () => ALLITEMS,
+  addItem: it => { customItems.push(it); saveItemCfg(); rebuildItems(); refreshItemSel(); },
+  saveItemCfg: () => saveItemCfg()
 };
 </script>
 </body>
