@@ -188,7 +188,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-23</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-24</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -543,108 +543,30 @@ document.querySelectorAll('.jbtn').forEach(b=>{
 });
 
 /* ============ 照片 ============ */
-/* ---- 网页相机（getUserMedia）---- */
+/* ---- 网页相机（getUserMedia）----
+   最简方案：不做任何重力感应/自动旋转——预览永远显示原始画面，
+   拍出什么就是什么（与预览所见一致），方向统一拍完后用照片上的 ↻/↺ 手动转正 */
 let camStream=null, camFacing='environment';
-/* 拍摄方向由重力感应自动识别（无切换按钮）：
-   竖握 → 竖版 3:4；
-   左横握（顶部朝左、快门在右手）→ 横版 4:3，画面自动转正；
-   右横握、倒握同样自动处理。预览所见即所得，拍完还能用照片左上角 ↻ 微调 */
-let orientMode='port', captureRot=0;
-/* 各拍摄模式的转正微调：自动识别为主，方向不对点⟲按钮+90°（选择记忆在本机，分横/竖模式各自记忆） */
-let rotAdj = { land:0, port:0 };
-try{
-  const s = JSON.parse(localStorage.getItem('ppe_rotadj')||'{}');
-  if(s && typeof s.land==='number') rotAdj.land = s.land;
-  /* port 不读取持久记忆：竖拍永远默认正立（防止历史上横拍临时转正污染竖拍方向） */
-}catch(e){}
-function saveAdj(){ try{ localStorage.setItem('ppe_rotadj', JSON.stringify(rotAdj)); }catch(e){} }
-function normRot(r){ r = ((r%360)+360)%360; return r===0?0:(r===90?90:(r===180?180:-90)); }
-function effRot(){ return normRot(captureRot + rotAdj[orientMode]); }
-let oriGranted=false;
-function enableOrientation(){
-  if(oriGranted) return;
-  try{
-    if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
-      DeviceOrientationEvent.requestPermission().then(r=>{
-        if(r==='granted'){ oriGranted=true; window.addEventListener('deviceorientation', onDevOri); }
-        /* 权限被拒时不再打扰：拍完用照片上的 ↻/↺ 手动转正 */
-      }).catch(()=>{});
-    } else if(typeof DeviceOrientationEvent!=='undefined'){
-      oriGranted=true;
-      window.addEventListener('deviceorientation', onDevOri);
-    }
-  }catch(e){}
-}
-let gyroSeen=false, gyroTimer=null;
-let lastKnown=null;   // 最近一次“明确的握持方向”——俯拍桌面等接近水平的姿态时，重力无法区分横竖，沿用它
-function onDevOri(e){
-  const b=e.beta||0, g=e.gamma||0;
-  let mode, rot, known=false;
-  if(window.innerWidth > window.innerHeight){ mode='land'; rot=0; known=true; }   // 屏幕已自动横屏：原始画面即正
-  else if(g <= -45){ mode='land'; rot=90;  known=true; }                          // 左横握（顶部朝左、快门在右）
-  else if(g >= 45){  mode='land'; rot=-90; known=true; }                          // 右横握（顶部朝右、快门在左）
-  else if(b >= 45){  mode='port'; rot=0;   known=true; }                          // 竖握
-  else if(b <= -45){ mode='port'; rot=180; known=true; }                          // 倒握
-  else if(lastKnown){ mode=lastKnown.mode; rot=lastKnown.rot; }                   // 俯拍等中间态：沿用进入该姿态前的握持方向
-  else return;                                                                    // 开机至今没有明确方向：保持现状
-  if(known) lastKnown={mode:mode, rot:rot};
-  gyroSeen = true;
-  clearTimeout(gyroTimer);
-  gyroTimer = setTimeout(()=>{        // 方向需稳定300ms才切换，避免按快门瞬间抖动导致预览/拍照不一致
-    if(mode!==orientMode || rot!==captureRot){
-      orientMode=mode; captureRot=rot;
-      updateShot(true);
-      if(camStream) toast(mode==='land' ? (rot===0?'已识别：横版拍摄':'已识别：横版拍摄（自动转正）') : '已识别：竖版拍摄');
-    }
-  }, 300);
-}
-/* 计算当前拍摄方向：陀螺仪优先；陀螺仪不可用时按原始画面宽高判断
-   （iOS Safari 会按握持方向输出横/竖帧：原始帧是横向 → 横握，需要转90°才是正的） */
-function updateShot(fromGyro){
-  const v=$('camVideo');
-  if(!fromGyro && gyroSeen){ layoutSlot(); return; }
-  if(!gyroSeen && v && v.videoWidth){
-    const land = v.videoWidth > v.videoHeight;
-    orientMode = land ? 'land' : 'port';
-    captureRot = land ? 90 : 0;
-  }
-  layoutSlot();
-}
 function layoutSlot(){
   const st=$('camStage'), s=$('camSlot');
   if(!st || !s || !camStream) return;
   const W=st.clientWidth, H=st.clientHeight;
   if(!W || !H) return;
-  /* 比例按“屏幕坐标系”算：屏幕竖着时取景窗用 3:4 的竖框，
-     横握时同一个框转过来就是物理上的 4:3 横向大画面（旧的 4/3 会把横拍挤成一条细带） */
+  /* 取景窗比例按屏幕方向：竖屏时 3:4 竖框，横屏时 4:3 横框 */
   const screenLand = window.innerWidth > window.innerHeight;
   const ratio = screenLand ? 4/3 : 3/4;
   let w=W, h=W/ratio;
   if(h>H){ h=H; w=Math.round(H*ratio); }
   s.style.width=Math.round(w)+'px';
   s.style.height=Math.round(h)+'px';
-  /* 预览同步旋转：取景框里看到的方向 = 拍出来的方向（所见即所得） */
   const v=$('camVideo');
-  const rot = effRot();
-  if(rot===90 || rot===-90){
-    v.style.cssText = 'position:absolute;left:50%;top:50%;width:'+Math.round(h)+'px;height:'+Math.round(w)+
-      'px;transform:translate(-50%,-50%) rotate('+rot+'deg)';
-  } else if(rot===180){
-    v.style.cssText = 'position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%) rotate(180deg)';
-  } else {
-    v.style.cssText = '';
-  }
-  /* 拍照方向快照：快门按下时用的是“预览此刻”的参数，与所见严格一致 */
-  window.__shotState = { rot: rot, ratio: (rot===90||rot===-90) ? h/w : w/h };
+  v.style.cssText = '';          // 不旋转，画面原样显示
+  window.__shotState = { rot: 0, ratio: w/h };
 }
 window.addEventListener('resize', ()=>{ if(camStream){ layoutSlot(); } });
 
 function camOpen(){
   const v=$('camVideo');
-  orientMode = window.innerWidth > window.innerHeight ? 'land' : 'port';
-  captureRot = 0;
-  lastKnown = null;             // 每次开相机重新识别握持方向
-  enableOrientation();          // 请求重力方向权限（自动识别能用就用，拍完始终可用 ↻/↺ 手动转正）
   $('camHint').textContent='正在启动相机…';
   $('camModal').classList.add('show');
   requestAnimationFrame(layoutSlot);
@@ -655,8 +577,7 @@ function camOpen(){
     v.muted=true;
     const p=v.play(); if(p&&p.catch) p.catch(()=>{});
     $('camHint').textContent='';
-    v.onloadedmetadata = ()=>updateShot();   // 按原始画面宽高初始化方向
-    updateShot();
+    layoutSlot();
   }).catch(err=>{
     $('camModal').classList.remove('show');
     toast('相机打开失败：'+(err && err.name ? err.name : '未知')+ '，改用系统相机');
@@ -681,38 +602,19 @@ $('camShot').addEventListener('click', ()=>{
   if(!v.videoWidth){ toast('相机未就绪，稍等一下再点'); return; }
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
 
-  /* 拍照几何与预览严格同源：方向用此刻的 effRot()（与预览 CSS 完全同一个值），
-     取景框尺寸实时读取——不用任何缓存快照，杜绝“预览对、拍出错” */
-  const rot = effRot();
+  /* 最简方案：不旋转、不裁方向——按预览取景框的形状居中裁切原始画面，所见即所得。
+     拍出来的方向不对，用照片上的 ↻/↺ 手动转正 */
   const rc = st.getBoundingClientRect();
   const bw = Math.max(1, Math.round(rc.width));
   const bh = Math.max(1, Math.round(rc.height));
   const fw = v.videoWidth, fh = v.videoHeight;
-  const land = (rot===90 || rot===-90);
-  /* 照片比例 = 预览所见框的形状：横握时预览画面整体转置，照片应为 4:3 横形；
-     竖握 / 倒握 / 屏幕横屏时照片形状 = 取景框形状 */
-  const br = land ? bh/bw : bw/bh;
+  const br = bw / bh;                            // 照片比例 = 取景框形状
 
-  /* 方向关键分支：手机传感器成像时画面内容相对拍摄方向是正立的。
-     帧横形 + 横握 → 原始画面本来就正立，居中裁切后【原样导出，不再旋转】
-       （旧版在这里多转了一次 90°，导致横拍照片方向错乱）；
-     帧竖形 + 横握 → 系统按 UI 方向输出了躺倒帧，整帧旋转 rot 转正后再裁；
-     竖握 / 倒握 → 帧内容正立，按取景框比例居中裁切原样导出 */
-  let srcV = v, sw = fw, sh = fh;
-  if(land && !(fw > fh)){
-    const tmp=document.createElement('canvas');
-    tmp.width=fh; tmp.height=fw;                 // 旋转后宽高互换
-    const tc=tmp.getContext('2d');
-    tc.translate(tmp.width/2, tmp.height/2);
-    tc.rotate(rot*Math.PI/180);
-    tc.drawImage(v, -fw/2, -fh/2);
-    srcV=tmp; sw=tmp.width; sh=tmp.height;       // canvas 用 width/height；video 必须用 videoWidth/Height
-  }
-  let cw=sw, ch=sh, cx=0, cy=0;
-  if(sw/sh > br){                                // 画面更宽 → 裁掉左右
-    cw=Math.round(sh*br); cx=Math.round((sw-cw)/2);
+  let cw=fw, ch=fh, cx=0, cy=0;
+  if(fw/fh > br){                                // 画面更宽 → 裁掉左右
+    cw=Math.round(fh*br); cx=Math.round((fw-cw)/2);
   } else {                                       // 画面更高 → 裁掉上下
-    ch=Math.round(sw/br); cy=Math.round((sh-ch)/2);
+    ch=Math.round(fw/br); cy=Math.round((fh-ch)/2);
   }
   let ow=cw, oh=ch;
   const maxSide=1280;
@@ -722,7 +624,7 @@ $('camShot').addEventListener('click', ()=>{
   }
   const cv=document.createElement('canvas');
   cv.width=ow; cv.height=oh;
-  cv.getContext('2d').drawImage(srcV, cx, cy, cw, ch, 0, 0, ow, oh);
+  cv.getContext('2d').drawImage(v, cx, cy, cw, ch, 0, 0, ow, oh);
   if(!ow || !oh){ toast('相机画面中断了，请重新拍照'); return; }
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
