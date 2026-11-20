@@ -299,8 +299,6 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 <div class="viewer" id="viewer"><span class="close" id="vClose">×</span><img id="vImg" alt=""></div>
 <div class="campanel" id="camModal">
   <div class="camtop">
-    <button id="camOrient" class="camx" type="button">⇕ 竖版</button>
-    <button id="camRot" class="camx" type="button" style="display:none">⟲ 左转</button>
     <span class="camtitle">拍照</span>
     <button id="camCancel" class="camx">✕ 关闭</button>
   </div>
@@ -544,15 +542,40 @@ document.querySelectorAll('.jbtn').forEach(b=>{
 /* ============ 照片 ============ */
 /* ---- 网页相机（getUserMedia）---- */
 let camStream=null, camFacing='environment';
-/* 拍摄方向：'port' 竖版 3:4 / 'land' 横版 4:3。取景框会跟着变，所见即所得 */
-let orientMode='port';
-/* 横拍转正：默认不旋转——手机横握（快门在右手）时摄像头原始画面本来就是正的横版。
-   若个别机型方向不对，点相机顶部按钮切换：⟲左转 / ⟳右转 / ⟲不转（记忆在本机） */
-let rotMode = 0;
-try{ const r = parseInt(localStorage.getItem('ppe_camrot2')); if(r===0||r===90||r===-90) rotMode = r; }catch(e){}
-function saveRot(){ try{ localStorage.setItem('ppe_camrot2', String(rotMode)); }catch(e){} }
-function setRotBtn(){
-  $('camRot').textContent = rotMode===90 ? '⟲ 左转' : (rotMode===-90 ? '⟳ 右转' : '⟲ 不转');
+/* 拍摄方向由重力感应自动识别（无切换按钮）：
+   竖握 → 竖版 3:4；
+   左横握（顶部朝左、快门在右手）→ 横版 4:3，画面自动转正；
+   右横握、倒握同样自动处理。预览所见即所得，拍完还能用照片左上角 ↻ 微调 */
+let orientMode='port', captureRot=0;
+let oriGranted=false;
+function enableOrientation(){
+  if(oriGranted) return;
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+      DeviceOrientationEvent.requestPermission().then(r=>{
+        if(r==='granted'){ oriGranted=true; window.addEventListener('deviceorientation', onDevOri); }
+        else { toast('未允许“动作与方向”，横拍请用照片上的↻转正'); }
+      }).catch(()=>{});
+    } else if(typeof DeviceOrientationEvent!=='undefined'){
+      oriGranted=true;
+      window.addEventListener('deviceorientation', onDevOri);
+    }
+  }catch(e){}
+}
+function onDevOri(e){
+  const b=e.beta||0, g=e.gamma||0;
+  let mode, rot;
+  if(window.innerWidth > window.innerHeight){ mode='land'; rot=0; }   // 屏幕已自动横屏：原始画面即正
+  else if(g <= -45){ mode='land'; rot=-90; }                          // 左横握（顶部朝左、快门在右）
+  else if(g >= 45){  mode='land'; rot=90;  }                          // 右横握（顶部朝右、快门在左）
+  else if(b >= 45){  mode='port'; rot=0;   }                          // 竖握
+  else if(b <= -45){ mode='port'; rot=180; }                          // 倒握
+  else return;                                                        // 平放等中间态：保持现状
+  if(mode!==orientMode || rot!==captureRot){
+    orientMode=mode; captureRot=rot;
+    layoutSlot();
+    if(camStream) toast(mode==='land' ? (rot===0?'已识别：横版拍摄':'已识别：横版拍摄（自动转正）') : '已识别：竖版拍摄');
+  }
 }
 function layoutSlot(){
   const st=$('camStage'), s=$('camSlot');
@@ -566,24 +589,22 @@ function layoutSlot(){
   s.style.height=Math.round(h)+'px';
   /* 预览同步旋转：取景框里看到的方向 = 拍出来的方向（所见即所得） */
   const v=$('camVideo');
-  if(orientMode==='land' && rotMode!==0){
+  if(captureRot===90 || captureRot===-90){
     v.style.cssText = 'position:absolute;left:50%;top:50%;width:'+Math.round(h)+'px;height:'+Math.round(w)+
-      'px;transform:translate(-50%,-50%) rotate('+rotMode+'deg)';
+      'px;transform:translate(-50%,-50%) rotate('+captureRot+'deg)';
+  } else if(captureRot===180){
+    v.style.cssText = 'position:absolute;left:50%;top:50%;width:100%;height:100%;transform:translate(-50%,-50%) rotate(180deg)';
   } else {
     v.style.cssText = '';
   }
-}
-function setOrientBtn(){
-  $('camOrient').textContent = orientMode==='land' ? '⇔ 横版' : '⇕ 竖版';
 }
 window.addEventListener('resize', ()=>{ if(camStream){ layoutSlot(); } });
 
 function camOpen(){
   const v=$('camVideo');
   orientMode = window.innerWidth > window.innerHeight ? 'land' : 'port';
-  setOrientBtn();
-  $('camRot').style.display = orientMode==='land' ? '' : 'none';
-  setRotBtn();
+  captureRot = 0;
+  enableOrientation();          // 请求重力方向权限（iOS 弹一次“允许访问动作与方向”，必须允许）
   $('camHint').textContent='正在启动相机…';
   $('camModal').classList.add('show');
   requestAnimationFrame(layoutSlot);
@@ -601,19 +622,6 @@ function camOpen(){
     $('camInput').click();
   });
 }
-$('camOrient').addEventListener('click', ()=>{
-  orientMode = orientMode==='land' ? 'port' : 'land';
-  setOrientBtn(); layoutSlot();
-  $('camRot').style.display = orientMode==='land' ? '' : 'none';
-  setRotBtn();
-  toast(orientMode==='land' ? '横版拍摄（横握手机，画面自动为正）' : '竖版拍摄（竖着拿）');
-});
-/* 横拍转正方向：左转（默认）/ 右转 / 不转，点按钮循环切换，预览立即跟着变 */
-$('camRot').addEventListener('click', ()=>{
-  rotMode = rotMode===90 ? -90 : (rotMode===-90 ? 0 : 90);
-  setRotBtn(); saveRot(); layoutSlot();
-  toast(rotMode===90 ? '转正方向：左翻握持（快门在右手）' : rotMode===-90 ? '转正方向：右翻握持（快门在左手）' : '已关闭自动转正');
-});
 /* 兼容老版 Safari 的前缀写法 */
 function getUserMedia(c){
   const nav=navigator;
@@ -633,7 +641,7 @@ $('camShot').addEventListener('click', ()=>{
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
 
   /* 横版模式按固定方向转正：先旋转整帧（与预览一致），再按取景框比例居中裁切，所见即所得 */
-  const rot = orientMode==='land' ? rotMode : 0;
+  const rot = captureRot;   // 重力感应识别的握持方向（0/±90/180），预览所见即所得
   const fw=v.videoWidth, fh=v.videoHeight;
   let srcV=v, sw=fw, sh=fh;
   if(rot !== 0){
@@ -665,7 +673,7 @@ $('camShot').addEventListener('click', ()=>{
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
   renderPhotos(); camClose();
-  toast((ow>=oh?'已拍摄（横版'+(rot!==0?(rot===90?'·左转正':'·右转正'):'')+'）':'已拍摄（竖版）') + '，反了点照片左上角↻');
+  toast((ow>=oh?'已拍摄（横版'+(rot!==0?'·已转正':'')+'）':'已拍摄（竖版）') + '，反了点照片左上角↻');
 });
 $('camAlbum').addEventListener('click', ()=>{ camClose(); $('fileInput').click(); });
 $('camSwitch').addEventListener('click', ()=>{
