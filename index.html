@@ -188,7 +188,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-22</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-23</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -301,8 +301,6 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 <div class="viewer" id="viewer"><span class="close" id="vClose">×</span><img id="vImg" alt=""></div>
 <div class="campanel" id="camModal">
   <div class="camtop">
-    <button id="camOrient" class="camx" type="button" title="点击切换：自动 / 横版 / 竖版">📐 自动</button>
-    <button id="camAdj" class="camx" type="button" title="方向不对点这里">⟲</button>
     <span class="camtitle">拍照</span>
     <button id="camCancel" class="camx">✕ 关闭</button>
   </div>
@@ -562,17 +560,14 @@ try{
 function saveAdj(){ try{ localStorage.setItem('ppe_rotadj', JSON.stringify(rotAdj)); }catch(e){} }
 function normRot(r){ r = ((r%360)+360)%360; return r===0?0:(r===90?90:(r===180?180:-90)); }
 function effRot(){ return normRot(captureRot + rotAdj[orientMode]); }
-let oriGranted=false, gyroDenied=false;
+let oriGranted=false;
 function enableOrientation(){
   if(oriGranted) return;
   try{
     if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
       DeviceOrientationEvent.requestPermission().then(r=>{
         if(r==='granted'){ oriGranted=true; window.addEventListener('deviceorientation', onDevOri); }
-        else {
-          gyroDenied=true;
-          toast('重力感应被拒绝：到 iPhone「设置 > Safari > 高级」打开「运动与方向」后横拍才能自动转正');
-        }
+        /* 权限被拒时不再打扰：拍完用照片上的 ↻/↺ 手动转正 */
       }).catch(()=>{});
     } else if(typeof DeviceOrientationEvent!=='undefined'){
       oriGranted=true;
@@ -582,37 +577,7 @@ function enableOrientation(){
 }
 let gyroSeen=false, gyroTimer=null;
 let lastKnown=null;   // 最近一次“明确的握持方向”——俯拍桌面等接近水平的姿态时，重力无法区分横竖，沿用它
-let manualLock=null;  // 手动锁定拍摄方向：null=自动识别；'land'=锁定横版；'port'=锁定竖版（持久保存，最可靠的保底手段）
-try{
-  const m = localStorage.getItem('ppe_orient');
-  manualLock = (m==='land' || m==='port') ? m : null;
-}catch(e){}
-function applyOrientUI(){
-  const b=$('camOrient');
-  if(!b) return;
-  b.textContent = manualLock==='land' ? '📐 横版' : (manualLock==='port' ? '📐 竖版' : '📐 自动');
-}
-function applyOrient(){                       // 把手动锁定应用到拍摄方向
-  if(manualLock==='land'){ orientMode='land'; captureRot=90; }     // 左横握（快门在右）标准姿势
-  else if(manualLock==='port'){ orientMode='port'; captureRot=0; }
-  applyOrientUI();
-  layoutSlot();
-}
-$('camOrient').addEventListener('click', ()=>{
-  manualLock = manualLock==='land' ? 'port' : (manualLock==='port' ? null : 'land');   // 自动→横→竖→自动 循环
-  try{ if(manualLock) localStorage.setItem('ppe_orient', manualLock); else localStorage.removeItem('ppe_orient'); }catch(e){}
-  applyOrient();
-  toast(manualLock==='land' ? '已锁定：横版拍摄（再点一下切竖版）'
-      : manualLock==='port' ? '已锁定：竖版拍摄（再点一下恢复自动）'
-      : '已恢复：自动识别方向');
-});
-applyOrientUI();
 function onDevOri(e){
-  if(manualLock){                             // 手动锁定优先：不再自动切换，但重力数据仍视为可用
-    if(!gyroSeen){ const h=$('camHint'); if(h && h.textContent.indexOf('⟲')>=0) h.textContent=''; }
-    gyroSeen=true;
-    return;
-  }
   const b=e.beta||0, g=e.gamma||0;
   let mode, rot, known=false;
   if(window.innerWidth > window.innerHeight){ mode='land'; rot=0; known=true; }   // 屏幕已自动横屏：原始画面即正
@@ -623,10 +588,6 @@ function onDevOri(e){
   else if(lastKnown){ mode=lastKnown.mode; rot=lastKnown.rot; }                   // 俯拍等中间态：沿用进入该姿态前的握持方向
   else return;                                                                    // 开机至今没有明确方向：保持现状
   if(known) lastKnown={mode:mode, rot:rot};
-  if(!gyroSeen){                       // 首次收到重力数据：清除“重力感应不可用”的提示
-    const h=$('camHint');
-    if(h && h.textContent.indexOf('⟲')>=0) h.textContent='';
-  }
   gyroSeen = true;
   clearTimeout(gyroTimer);
   gyroTimer = setTimeout(()=>{        // 方向需稳定300ms才切换，避免按快门瞬间抖动导致预览/拍照不一致
@@ -683,9 +644,7 @@ function camOpen(){
   orientMode = window.innerWidth > window.innerHeight ? 'land' : 'port';
   captureRot = 0;
   lastKnown = null;             // 每次开相机重新识别握持方向
-  applyOrient();                // 若用户手动锁定了横版/竖版，立即应用
-  $('camAdj').style.display='';
-  enableOrientation();          // 请求重力方向权限（iOS 弹一次“允许访问动作与方向”，必须允许）
+  enableOrientation();          // 请求重力方向权限（自动识别能用就用，拍完始终可用 ↻/↺ 手动转正）
   $('camHint').textContent='正在启动相机…';
   $('camModal').classList.add('show');
   requestAnimationFrame(layoutSlot);
@@ -696,29 +655,14 @@ function camOpen(){
     v.muted=true;
     const p=v.play(); if(p&&p.catch) p.catch(()=>{});
     $('camHint').textContent='';
-    v.onloadedmetadata = ()=>updateShot();   // 按原始画面宽高初始化方向（陀螺仪不可用时的兜底）
+    v.onloadedmetadata = ()=>updateShot();   // 按原始画面宽高初始化方向
     updateShot();
-    /* 1.2 秒后仍没收到任何重力数据 → 明确告知用户重力感应不可用，横拍需先点⟲转正 */
-    setTimeout(()=>{
-      if(!gyroSeen && camStream){
-        $('camHint').textContent='⚠ 重力感应未开启：横拍时请先点左上角⟲转正，看到画面正了再拍';
-      }
-    }, 1200);
   }).catch(err=>{
     $('camModal').classList.remove('show');
     toast('相机打开失败：'+(err && err.name ? err.name : '未知')+ '，改用系统相机');
     $('camInput').click();
   });
 }
-/* ⟲ 转正：自动识别的方向不对时，点一下预览转90°，所见即所得。
-   横版模式(land)的微调跨会话记忆；竖版模式不记忆——竖拍永远默认正立，
-   避免“无重力感应时横拍临时转正”把竖拍方向污染 */
-$('camAdj').addEventListener('click', ()=>{
-  rotAdj[orientMode] = normRot(rotAdj[orientMode] + 90);
-  if(orientMode==='land'){ saveAdj(); }
-  layoutSlot();
-  toast('预览已转 90°——看到正了就拍' + (orientMode==='land' ? '，会记住这个方向' : ''));
-});
 /* 兼容老版 Safari 的前缀写法 */
 function getUserMedia(c){
   const nav=navigator;
