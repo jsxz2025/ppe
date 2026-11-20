@@ -76,6 +76,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
 .ph .del{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;
   background:rgba(0,0,0,.55);color:#fff;border:0;font-size:13px;line-height:20px;cursor:pointer;padding:0}
+.ph .rot{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
+  background:rgba(0,0,0,.55);color:#fff;border:0;font-size:12px;line-height:20px;cursor:pointer;padding:0}
 .addph{aspect-ratio:1;border:2px dashed #b9c4d4;border-radius:8px;background:#fafbfd;color:#8d99a9;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;
   font-size:11px;border-style:dashed;padding:0}
@@ -418,6 +420,26 @@ function normPhotos(arr){
   }).filter(x=>x && x.d);
 }
 function phSrc(p){ return !p ? '' : (typeof p === 'string' ? p : (p.d || p.data || '')); }
+/* 把图片顺时针旋转 90°：拍反了可一键转正 */
+function rotate90(p){
+  return new Promise(res=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const cv = document.createElement('canvas');
+      cv.width = img.naturalHeight; cv.height = img.naturalWidth;    // 90°宽高互换
+      const ctx = cv.getContext('2d');
+      ctx.translate(cv.width/2, cv.height/2);
+      ctx.rotate(Math.PI/2);
+      ctx.drawImage(img, -img.naturalWidth/2, -img.naturalHeight/2);
+      const d = cv.toDataURL('image/jpeg', 0.85);
+      if(p.w && p.h){ const t=p.w; p.w=p.h; p.h=t; }
+      p.data = d;
+      res(true);
+    };
+    img.onerror = ()=>res(false);
+    img.src = p.data;
+  });
+}
 function normRecords(arr){
   if(!Array.isArray(arr)) return [];
   arr.forEach(r=>{ r.photos = normPhotos(r.photos); });
@@ -527,11 +549,12 @@ let orientMode='port';
 let devRot = 0;              // 0 = 竖握；±90 = 横握时的画面修正角
 let oriAsked = false;
 function onDevOri(e){
-  const g = e.gamma || 0;    // 设备左右倾斜角：右侧向下为正
-  if(Math.abs(g) > 45){
-    devRot = g > 0 ? -90 : 90;   // 横握 → 画面旋转 90° 转正
+  const g = e.gamma || 0;    // 设备左右倾斜角
+  const screenLand = window.innerWidth > window.innerHeight;   // 屏幕自己转过来了就不需要修正
+  if(Math.abs(g) > 45 && !screenLand){
+    devRot = g > 0 ? 90 : -90;   // 横握 → 画面旋转 90° 转正
   } else {
-    devRot = 0;                  // 竖握（或平放）→ 不旋转
+    devRot = 0;                  // 竖握（或平放/屏幕已横屏）→ 不旋转
   }
 }
 function enableOrientation(){
@@ -639,7 +662,7 @@ $('camShot').addEventListener('click', ()=>{
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
   renderPhotos(); camClose();
-  toast(ow>=oh ? (devRot!==0?'已拍摄（横版·已自动转正）':'已拍摄（横版）') : '已拍摄（竖版）');
+  toast((ow>=oh?'已拍摄（横版'+(devRot!==0?'·已转正':'')+'）':'已拍摄（竖版）') + '，反了点照片左上角↻');
 });
 $('camAlbum').addEventListener('click', ()=>{ camClose(); $('fileInput').click(); });
 $('camSwitch').addEventListener('click', ()=>{
@@ -714,8 +737,14 @@ function renderPhotos(){
   photoBuf.forEach((p,idx)=>{
     const d = document.createElement('div');
     d.className = 'ph';
-    d.innerHTML = '<img src="'+p.data+'" alt=""><button class="del" type="button">×</button>';
+    d.innerHTML = '<img src="'+p.data+'" alt=""><button class="rot" type="button" title="旋转">↻</button><button class="del" type="button">×</button>';
     d.querySelector('img').addEventListener('click', ()=>openViewer(p.data));
+    d.querySelector('.rot').addEventListener('click', async ev=>{
+      ev.stopPropagation();
+      const ok = await rotate90(p);
+      if(ok){ renderPhotos(); toast('已旋转 90°，方向不对再点一下'); }
+      else toast('旋转失败');
+    });
     d.querySelector('.del').addEventListener('click', ev=>{
       ev.stopPropagation();
       photoBuf.splice(idx,1);
@@ -1103,7 +1132,8 @@ async function exportXlsx(){
       return { data: phSrc(p), w: sz.w, h: sz.h };
     });
     const photoRows = ph.length;
-    const span = Math.max(1, vLines, photoRows);
+    /* 行数只由照片决定：有几张照片占几行，不留空白行（文字在合并单元格内由首行高度保证） */
+    const span = Math.max(1, photoRows);
     layout.push({start:cur, span, vLines, photoRows, ph});
     cur += span;
   });
@@ -1154,11 +1184,11 @@ async function exportXlsx(){
       const imgH = (L.ph && L.ph[k]) ? L.ph[k].h : 0;
       const rowNeed = imgH ? Math.round(imgH/1.3333) + 8 : 0;
       if(k === 0){
-        // 首行高度：验收要求需 n 行文字空间；至少能容纳本行照片
-        const textH = Math.min(L.vLines, 16) * 14 + 12;
+        // 首行高度：验收要求全部文字所需空间（不设上限，确保长文字完整显示）；至少能容纳本行照片
+        const textH = L.vLines * 14 + 12;
         h = Math.max(textH, rowNeed, 60);
       } else {
-        h = Math.max(rowNeed, 40);                     // 后续行 = 该张照片的高度
+        h = imgH ? Math.max(rowNeed, 40) : 24;         // 有照片按照片高度；没照片用紧凑行，减少空白
       }
       sheetRows += '<row r="'+(r+1)+'" ht="'+h+'" customHeight="1">'+cells+'</row>';
     }
@@ -1260,8 +1290,8 @@ async function exportXlsx(){
 
   const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<dimension ref="A1:I${lastRow}"/>
-<sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
+<dimension ref="A1:J${lastRow}"/>
+<sheetViews><sheetView tabSelected="1" showGridLines="0" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView></sheetViews>
 <sheetFormatPr defaultRowHeight="30"/>
 <cols>${colsXml}</cols>
 <sheetData>${sheetRows}</sheetData>
