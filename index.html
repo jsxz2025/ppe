@@ -186,7 +186,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-15</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-16</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -593,7 +593,10 @@ function layoutSlot(){
   if(!st || !s || !camStream) return;
   const W=st.clientWidth, H=st.clientHeight;
   if(!W || !H) return;
-  const ratio = orientMode==='land' ? 4/3 : 3/4;
+  /* 比例按“屏幕坐标系”算：屏幕竖着时取景窗用 3:4 的竖框，
+     横握时同一个框转过来就是物理上的 4:3 横向大画面（旧的 4/3 会把横拍挤成一条细带） */
+  const screenLand = window.innerWidth > window.innerHeight;
+  const ratio = screenLand ? 4/3 : 3/4;
   let w=W, h=W/ratio;
   if(h>H){ h=H; w=Math.round(H*ratio); }
   s.style.width=Math.round(w)+'px';
@@ -673,7 +676,11 @@ $('camShot').addEventListener('click', ()=>{
     srcV=tmp; sw=tmp.width; sh=tmp.height;
   }
   const rc=$('camSlot').getBoundingClientRect();
-  const boxRatio = (rc.width>0 && rc.height>0) ? rc.width/rc.height : sw/sh;
+  /* 取景框是竖框但画面转了90°时，实际可视比例要反过来算（物理上的 4:3 横向） */
+  const swapped = (rot===90 || rot===-90);
+  const boxRatio = (rc.width>0 && rc.height>0)
+    ? (swapped ? rc.height/rc.width : rc.width/rc.height)
+    : sw/sh;
   let cw=sw, ch=sh, cx=0, cy=0;
   if(sw/sh > boxRatio){                          // 画面更宽 → 裁掉左右
     cw=Math.round(sh*boxRatio); cx=Math.round((sw-cw)/2);
