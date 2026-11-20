@@ -186,7 +186,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-20</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-21</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -299,7 +299,8 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 <div class="viewer" id="viewer"><span class="close" id="vClose">×</span><img id="vImg" alt=""></div>
 <div class="campanel" id="camModal">
   <div class="camtop">
-    <button id="camAdj" class="camx" type="button" title="方向不对点这里">⟲ 转正</button>
+    <button id="camOrient" class="camx" type="button" title="点击切换：自动 / 横版 / 竖版">📐 自动</button>
+    <button id="camAdj" class="camx" type="button" title="方向不对点这里">⟲</button>
     <span class="camtitle">拍照</span>
     <button id="camCancel" class="camx">✕ 关闭</button>
   </div>
@@ -578,7 +579,37 @@ function enableOrientation(){
 }
 let gyroSeen=false, gyroTimer=null;
 let lastKnown=null;   // 最近一次“明确的握持方向”——俯拍桌面等接近水平的姿态时，重力无法区分横竖，沿用它
+let manualLock=null;  // 手动锁定拍摄方向：null=自动识别；'land'=锁定横版；'port'=锁定竖版（持久保存，最可靠的保底手段）
+try{
+  const m = localStorage.getItem('ppe_orient');
+  manualLock = (m==='land' || m==='port') ? m : null;
+}catch(e){}
+function applyOrientUI(){
+  const b=$('camOrient');
+  if(!b) return;
+  b.textContent = manualLock==='land' ? '📐 横版' : (manualLock==='port' ? '📐 竖版' : '📐 自动');
+}
+function applyOrient(){                       // 把手动锁定应用到拍摄方向
+  if(manualLock==='land'){ orientMode='land'; captureRot=90; }     // 左横握（快门在右）标准姿势
+  else if(manualLock==='port'){ orientMode='port'; captureRot=0; }
+  applyOrientUI();
+  layoutSlot();
+}
+$('camOrient').addEventListener('click', ()=>{
+  manualLock = manualLock==='land' ? 'port' : (manualLock==='port' ? null : 'land');   // 自动→横→竖→自动 循环
+  try{ if(manualLock) localStorage.setItem('ppe_orient', manualLock); else localStorage.removeItem('ppe_orient'); }catch(e){}
+  applyOrient();
+  toast(manualLock==='land' ? '已锁定：横版拍摄（再点一下切竖版）'
+      : manualLock==='port' ? '已锁定：竖版拍摄（再点一下恢复自动）'
+      : '已恢复：自动识别方向');
+});
+applyOrientUI();
 function onDevOri(e){
+  if(manualLock){                             // 手动锁定优先：不再自动切换，但重力数据仍视为可用
+    if(!gyroSeen){ const h=$('camHint'); if(h && h.textContent.indexOf('⟲')>=0) h.textContent=''; }
+    gyroSeen=true;
+    return;
+  }
   const b=e.beta||0, g=e.gamma||0;
   let mode, rot, known=false;
   if(window.innerWidth > window.innerHeight){ mode='land'; rot=0; known=true; }   // 屏幕已自动横屏：原始画面即正
@@ -649,6 +680,7 @@ function camOpen(){
   orientMode = window.innerWidth > window.innerHeight ? 'land' : 'port';
   captureRot = 0;
   lastKnown = null;             // 每次开相机重新识别握持方向
+  applyOrient();                // 若用户手动锁定了横版/竖版，立即应用
   $('camAdj').style.display='';
   enableOrientation();          // 请求重力方向权限（iOS 弹一次“允许访问动作与方向”，必须允许）
   $('camHint').textContent='正在启动相机…';
