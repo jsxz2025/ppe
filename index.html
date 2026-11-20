@@ -78,6 +78,8 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
   background:rgba(0,0,0,.55);color:#fff;border:0;font-size:13px;line-height:20px;cursor:pointer;padding:0}
 .ph .rot{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;
   background:rgba(0,0,0,.55);color:#fff;border:0;font-size:12px;line-height:20px;cursor:pointer;padding:0}
+.ph .rotl{position:absolute;top:3px;left:26px;width:20px;height:20px;border-radius:50%;
+  background:rgba(0,0,0,.55);color:#fff;border:0;font-size:12px;line-height:20px;cursor:pointer;padding:0}
 .addph{aspect-ratio:1;border:2px dashed #b9c4d4;border-radius:8px;background:#fafbfd;color:#8d99a9;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;
   font-size:11px;border-style:dashed;padding:0}
@@ -186,7 +188,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-21</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-22</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -421,8 +423,9 @@ function normPhotos(arr){
   }).filter(x=>x && x.d);
 }
 function phSrc(p){ return !p ? '' : (typeof p === 'string' ? p : (p.d || p.data || '')); }
-/* 把图片顺时针旋转 90°：拍反了可一键转正 */
-function rotate90(p){
+/* 旋转图片 90°：dir=1 顺时针（默认），dir=-1 逆时针。拍反了手动转正 */
+function rotate90(p, dir){
+  dir = dir || 1;
   return new Promise(res=>{
     const img = new Image();
     img.onload = ()=>{
@@ -430,7 +433,7 @@ function rotate90(p){
       cv.width = img.naturalHeight; cv.height = img.naturalWidth;    // 90°宽高互换
       const ctx = cv.getContext('2d');
       ctx.translate(cv.width/2, cv.height/2);
-      ctx.rotate(Math.PI/2);
+      ctx.rotate(dir * Math.PI/2);
       ctx.drawImage(img, -img.naturalWidth/2, -img.naturalHeight/2);
       const d = cv.toDataURL('image/jpeg', 0.85);
       if(p.w && p.h){ const t=p.w; p.w=p.h; p.h=t; }
@@ -780,7 +783,8 @@ $('camShot').addEventListener('click', ()=>{
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
   renderPhotos(); camClose();
-  toast((ow>=oh?'已拍摄（横版':'已拍摄（竖版')+' '+ow+'×'+oh+'）');
+  toast((ow>=oh?'已拍摄（横版':'已拍摄（竖版')+' '+ow+'×'+oh+'）'
+    + (oh>ow ? '，方向反了点照片左上角↻转正' : '，方向不对可点照片左上角↻/↺转正'));
 });
 $('camAlbum').addEventListener('click', ()=>{ camClose(); $('fileInput').click(); });
 $('camSwitch').addEventListener('click', ()=>{
@@ -855,12 +859,21 @@ function renderPhotos(){
   photoBuf.forEach((p,idx)=>{
     const d = document.createElement('div');
     d.className = 'ph';
-    d.innerHTML = '<img src="'+p.data+'" alt=""><button class="rot" type="button" title="旋转">↻</button><button class="del" type="button">×</button>';
+    d.innerHTML = '<img src="'+p.data+'" alt="">'+
+      '<button class="rot" type="button" title="顺时针转90°">↻</button>'+
+      '<button class="rotl" type="button" title="逆时针转90°">↺</button>'+
+      '<button class="del" type="button">×</button>';
     d.querySelector('img').addEventListener('click', ()=>openViewer(p.data));
     d.querySelector('.rot').addEventListener('click', async ev=>{
       ev.stopPropagation();
-      const ok = await rotate90(p);
-      if(ok){ renderPhotos(); toast('已旋转 90°，方向不对再点一下'); }
+      const ok = await rotate90(p, 1);
+      if(ok){ renderPhotos(); toast('已顺时针转 90°，方向不对再点一下'); }
+      else toast('旋转失败');
+    });
+    d.querySelector('.rotl').addEventListener('click', async ev=>{
+      ev.stopPropagation();
+      const ok = await rotate90(p, -1);
+      if(ok){ renderPhotos(); toast('已逆时针转 90°，方向不对再点一下'); }
       else toast('旋转失败');
     });
     d.querySelector('.del').addEventListener('click', ev=>{
