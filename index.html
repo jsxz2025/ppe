@@ -186,7 +186,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-13</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-14</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -566,8 +566,8 @@ function onDevOri(e){
   const b=e.beta||0, g=e.gamma||0;
   let mode, rot;
   if(window.innerWidth > window.innerHeight){ mode='land'; rot=0; }   // 屏幕已自动横屏：原始画面即正
-  else if(g <= -45){ mode='land'; rot=-90; }                          // 左横握（顶部朝左、快门在右）
-  else if(g >= 45){  mode='land'; rot=90;  }                          // 右横握（顶部朝右、快门在左）
+  else if(g <= -45){ mode='land'; rot=90;  }                          // 左横握（顶部朝左、快门在右）：实测顺时针转90°为正
+  else if(g >= 45){  mode='land'; rot=-90; }                          // 右横握（顶部朝右、快门在左）
   else if(b >= 45){  mode='port'; rot=0;   }                          // 竖握
   else if(b <= -45){ mode='port'; rot=180; }                          // 倒握
   else return;                                                        // 平放等中间态：保持现状
