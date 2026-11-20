@@ -188,7 +188,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-24</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-25</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -629,8 +629,6 @@ $('camShot').addEventListener('click', ()=>{
   const data=cv.toDataURL('image/jpeg',0.72);
   photoBuf.push({id:'p'+Date.now()+Math.random().toString(36).slice(2,6), data, w:ow, h:oh});
   renderPhotos(); camClose();
-  toast((ow>=oh?'已拍摄（横版':'已拍摄（竖版')+' '+ow+'×'+oh+'）'
-    + (oh>ow ? '，方向反了点照片左上角↻转正' : '，方向不对可点照片左上角↻/↺转正'));
 });
 $('camAlbum').addEventListener('click', ()=>{ camClose(); $('fileInput').click(); });
 $('camSwitch').addEventListener('click', ()=>{
@@ -1077,7 +1075,7 @@ async function exportXlsx(){
   if(!list.length){ toast('没有可导出的记录'); return; }
 
   /* 列：0日期 1物品 2品牌 3数量 4单位 5验收要求 6照片 7判定 8验收人 9备注 */
-  const colW = [12, 22, 14, 7, 6, 58, 26, 8, 10, 20];
+  const colW = [12, 22, 14, 7, 6, 58, 21, 8, 10, 20];
 
   /* 共享字符串 */
   const sst=[], sstIdx={};
@@ -1089,7 +1087,7 @@ async function exportXlsx(){
 
   /* 照片显示尺寸：严格保持原始宽高比，横拍横版、竖拍竖版，Excel 里不会被拉变形 */
   const EMU = 9525;                   // 1px = 9525 EMU
-  const MAX_W = 168, MAX_H = 132;     // 单张照片最大显示尺寸（px）
+  const MAX_W = 138, MAX_H = 120;     // 单张照片最大显示尺寸（px），与照片列宽 21 相匹配
   function photoSize(p){
     let w = p.w || 0, h = p.h || 0;
     if(!w || !h){ w = 4; h = 3; }     // 早期记录无尺寸信息 → 按 4:3 横版兜底
