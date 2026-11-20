@@ -546,11 +546,11 @@ document.querySelectorAll('.jbtn').forEach(b=>{
 let camStream=null, camFacing='environment';
 /* 拍摄方向：'port' 竖版 3:4 / 'land' 横版 4:3。取景框会跟着变，所见即所得 */
 let orientMode='port';
-/* 横拍转正：默认 ⟲左转（对应"手机向左翻、快门在右手"）；预览实时显示转正效果，所见即所得，
-   方向不对点相机顶部按钮切换：⟲左转 / ⟳右转 / ⟲不转（记忆在本机） */
-let rotMode = 90;
-try{ const r = parseInt(localStorage.getItem('ppe_camrot')); if(r===0||r===90||r===-90) rotMode = r; }catch(e){}
-function saveRot(){ try{ localStorage.setItem('ppe_camrot', String(rotMode)); }catch(e){} }
+/* 横拍转正：默认不旋转——手机横握（快门在右手）时摄像头原始画面本来就是正的横版。
+   若个别机型方向不对，点相机顶部按钮切换：⟲左转 / ⟳右转 / ⟲不转（记忆在本机） */
+let rotMode = 0;
+try{ const r = parseInt(localStorage.getItem('ppe_camrot2')); if(r===0||r===90||r===-90) rotMode = r; }catch(e){}
+function saveRot(){ try{ localStorage.setItem('ppe_camrot2', String(rotMode)); }catch(e){} }
 function setRotBtn(){
   $('camRot').textContent = rotMode===90 ? '⟲ 左转' : (rotMode===-90 ? '⟳ 右转' : '⟲ 不转');
 }
@@ -1168,7 +1168,7 @@ async function exportXlsx(){
     for(let k=0;k<nRow;k++){
       const r = L.start + k;
       let cells = '';
-      const phCell = (k === nRow-1) ? 11 : 10;      // 照片列：白底；记录最后一行带下边框用于区分记录
+      const phCell = (k === nRow-1) ? 11 : 10;      // 照片列：不填充（网格线透出）；记录最后一行带下边框用于区分记录
       if(k === 0){
         cells += C(r,0,rec.date,3);
         cells += C(r,1,rec.item,3);
@@ -1176,7 +1176,7 @@ async function exportXlsx(){
         cells += C(r,3,Number(rec.qty)||0,4);
         cells += C(r,4,rec.unit||'',3);
         cells += C(r,5,rec.req,5);
-        cells += C(r,6,null,phCell);                // 照片列：白底无网格，图片浮在上面
+        cells += C(r,6,null,phCell);                // 照片列：不填充（网格线透出），图片浮在上面
         cells += C(r,7, rec.judge==='ok'?'符合':'不符合', rec.judge==='ok'?7:8);
         cells += C(r,8,rec.inspector||'',3);
         cells += C(r,9,rec.remark||'',9);
@@ -1288,8 +1288,8 @@ async function exportXlsx(){
 <xf numFmtId="0" fontId="2" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="3" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
-<xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/>
-<xf numFmtId="0" fontId="0" fillId="3" borderId="2" xfId="0" applyFill="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyFill="0"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyFill="0" applyBorder="1"/>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="常规" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
