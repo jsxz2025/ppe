@@ -186,7 +186,7 @@ footer .btn{flex:1;min-width:100px;font-size:14px;padding:11px 8px}
 
 <header>
   <div class="wrap">
-    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-16</span></h1>
+    <h1>劳保用品入库验收 <span style="font-size:10px;font-weight:400;color:rgba(255,255,255,.75);vertical-align:middle" id="verTag">v1120-17</span></h1>
     <button class="linkbtn" id="viewRec">已提交 <span id="hdrCnt">0</span> 条 ›</button>
   </div>
 </header>
@@ -573,6 +573,7 @@ function enableOrientation(){
     }
   }catch(e){}
 }
+let gyroSeen=false, gyroTimer=null;
 function onDevOri(e){
   const b=e.beta||0, g=e.gamma||0;
   let mode, rot;
@@ -582,11 +583,27 @@ function onDevOri(e){
   else if(b >= 45){  mode='port'; rot=0;   }                          // 竖握
   else if(b <= -45){ mode='port'; rot=180; }                          // 倒握
   else return;                                                        // 平放等中间态：保持现状
-  if(mode!==orientMode || rot!==captureRot){
-    orientMode=mode; captureRot=rot;
-    layoutSlot();
-    if(camStream) toast(mode==='land' ? (rot===0?'已识别：横版拍摄':'已识别：横版拍摄（自动转正）') : '已识别：竖版拍摄');
+  gyroSeen = true;
+  clearTimeout(gyroTimer);
+  gyroTimer = setTimeout(()=>{        // 方向需稳定300ms才切换，避免按快门瞬间抖动导致预览/拍照不一致
+    if(mode!==orientMode || rot!==captureRot){
+      orientMode=mode; captureRot=rot;
+      updateShot(true);
+      if(camStream) toast(mode==='land' ? (rot===0?'已识别：横版拍摄':'已识别：横版拍摄（自动转正）') : '已识别：竖版拍摄');
+    }
+  }, 300);
+}
+/* 计算当前拍摄方向：陀螺仪优先；陀螺仪不可用时按原始画面宽高判断
+   （iOS Safari 会按握持方向输出横/竖帧：原始帧是横向 → 横握，需要转90°才是正的） */
+function updateShot(fromGyro){
+  const v=$('camVideo');
+  if(!fromGyro && gyroSeen){ layoutSlot(); return; }
+  if(!gyroSeen && v && v.videoWidth){
+    const land = v.videoWidth > v.videoHeight;
+    orientMode = land ? 'land' : 'port';
+    captureRot = land ? 90 : 0;
   }
+  layoutSlot();
 }
 function layoutSlot(){
   const st=$('camStage'), s=$('camSlot');
@@ -612,6 +629,8 @@ function layoutSlot(){
   } else {
     v.style.cssText = '';
   }
+  /* 拍照方向快照：快门按下时用的是“预览此刻”的参数，与所见严格一致 */
+  window.__shotState = { rot: rot, ratio: (rot===90||rot===-90) ? h/w : w/h };
 }
 window.addEventListener('resize', ()=>{ if(camStream){ layoutSlot(); } });
 
@@ -631,7 +650,8 @@ function camOpen(){
     v.muted=true;
     const p=v.play(); if(p&&p.catch) p.catch(()=>{});
     $('camHint').textContent='';
-    layoutSlot();
+    v.onloadedmetadata = ()=>updateShot();   // 按原始画面宽高初始化方向（陀螺仪不可用时的兜底）
+    updateShot();
   }).catch(err=>{
     $('camModal').classList.remove('show');
     toast('相机打开失败：'+(err && err.name ? err.name : '未知')+ '，改用系统相机');
@@ -662,8 +682,9 @@ $('camShot').addEventListener('click', ()=>{
   if(!v.videoWidth){ toast('相机未就绪，稍等一下再点'); return; }
   if(photoBuf.length>=9){ toast('最多9张照片'); camClose(); return; }
 
-  /* 横版模式按固定方向转正：先旋转整帧（与预览一致），再按取景框比例居中裁切，所见即所得 */
-  const rot = effRot();   // 自动识别 + 手动微调，预览所见即所得
+  /* 用“预览快照”的方向与比例拍照：所见即所得，陀螺仪瞬时跳变不影响 */
+  const ss = window.__shotState || { rot: effRot(), ratio: 3/4 };
+  const rot = ss.rot;
   const fw=v.videoWidth, fh=v.videoHeight;
   let srcV=v, sw=fw, sh=fh;
   if(rot !== 0){
@@ -675,12 +696,7 @@ $('camShot').addEventListener('click', ()=>{
     tc.drawImage(v, -fw/2, -fh/2);
     srcV=tmp; sw=tmp.width; sh=tmp.height;
   }
-  const rc=$('camSlot').getBoundingClientRect();
-  /* 取景框是竖框但画面转了90°时，实际可视比例要反过来算（物理上的 4:3 横向） */
-  const swapped = (rot===90 || rot===-90);
-  const boxRatio = (rc.width>0 && rc.height>0)
-    ? (swapped ? rc.height/rc.width : rc.width/rc.height)
-    : sw/sh;
+  const boxRatio = ss.ratio;
   let cw=sw, ch=sh, cx=0, cy=0;
   if(sw/sh > boxRatio){                          // 画面更宽 → 裁掉左右
     cw=Math.round(sh*boxRatio); cx=Math.round((sw-cw)/2);
